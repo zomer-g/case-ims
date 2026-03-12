@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case-IMS: כניסה למערכת</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            max-width: 420px;
+            width: 100%;
+        }
+        .login-card .card-header {
+            background: #2c5364;
+            color: white;
+            border-radius: 1rem 1rem 0 0;
+            text-align: center;
+            padding: 2rem 1rem 1.5rem;
+        }
+        .login-card .card-header i {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .btn-primary { background: #2c5364; border-color: #2c5364; }
+        .btn-primary:hover { background: #203a43; border-color: #203a43; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        :focus-visible { outline: 3px solid #f59e0b !important; outline-offset: 2px !important; }
+    </style>
+</head>
+<body>
+    <main>
+    <div class="login-card card">
+        <div class="card-header">
+            <i class="fas fa-folder-open d-block" aria-hidden="true"></i>
+            <h1 class="mb-0 h3">Case-IMS</h1>
+            <small>מערכת ניהול חומרי חקירה</small>
+        </div>
+        <div class="card-body p-4">
+            <div id="alert-box" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+
+            <!-- Google SSO -->
+            <div id="google-sso-section" class="d-none">
+                <div id="google-btn-wrap" class="d-flex justify-content-center mb-3">
+                    <span id="google-loading" class="text-muted small" role="status"><i class="fas fa-spinner fa-spin me-1"></i>טוען כניסה עם Google...</span>
+                </div>
+                <div id="google-error" class="text-center d-none" role="alert">
+                    <small class="text-muted"><i class="fas fa-exclamation-triangle me-1"></i>לא ניתן לטעון את שירות Google. <a href="#" onclick="location.reload()">רענן את הדף</a></small>
+                </div>
+            </div>
+
+            <!-- Toggle for email/password -->
+            <div class="text-center mb-3">
+                <a href="#" id="toggle-email-form" class="text-muted small" style="text-decoration:none;" aria-expanded="false">
+                    <i class="fas fa-envelope me-1"></i>כניסה עם דוא״ל וסיסמה
+                </a>
+            </div>
+
+            <!-- Email/password form -->
+            <div id="email-form-section" class="d-none">
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">דוא״ל</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                            <input type="email" class="form-control" id="email" placeholder="user@example.com" required autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="password" class="form-label">סיסמה</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" class="form-control" id="password" placeholder="********" required autocomplete="current-password">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mb-3" id="login-btn">
+                        <i class="fas fa-sign-in-alt me-1"></i> כניסה
+                    </button>
+                </form>
+            </div>
+
+            <div class="text-center mt-2">
+                <span class="small text-muted">אין חשבון?</span>
+                <a href="/static/register.html" class="small">הרשמה למערכת</a>
+            </div>
+            <div class="text-center mt-2">
+                <a href="/static/index.html" class="small text-muted" style="text-decoration:none;">
+                    <i class="fas fa-eye me-1"></i>עיון ללא התחברות
+                </a>
+            </div>
+        </div>
+    </div>
+    </main>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        if (localStorage.getItem('token')) {
+            window.location.href = '/static/index.html';
+        }
+
+        /* ---------- Google SSO ---------- */
+        function generateNonce() {
+            const arr = new Uint8Array(32);
+            crypto.getRandomValues(arr);
+            return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+        }
+        const _googleNonce = generateNonce();
+
+        async function handleGoogleCallback(response) {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.classList.add('d-none');
+            try {
+                const res = await fetch('/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_token: response.credential, nonce: _googleNonce }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Google login failed');
+                }
+                const data = await res.json();
+                localStorage.setItem('token', data.access_token);
+                const meRes = await fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + data.access_token } });
+                if (meRes.ok) {
+                    localStorage.setItem('user', JSON.stringify(await meRes.json()));
+                }
+                window.location.href = '/static/index.html';
+            } catch (err) {
+                alertBox.className = 'alert alert-danger';
+                alertBox.textContent = err.message;
+                alertBox.classList.remove('d-none');
+            }
+        }
+
+        async function initGoogleSSO() {
+            const section = document.getElementById('google-sso-section');
+            const btnWrap = document.getElementById('google-btn-wrap');
+            const loadingEl = document.getElementById('google-loading');
+            const errorEl = document.getElementById('google-error');
+            try {
+                const res = await fetch('/auth/google-config');
+                if (!res.ok) return;
+                const cfg = await res.json();
+                if (!cfg.client_id) return;
+                section.classList.remove('d-none');
+                let attempts = 0;
+                function tryInit() {
+                    attempts++;
+                    if (typeof google === 'undefined' || !google.accounts) {
+                        if (attempts >= 40) { loadingEl?.classList.add('d-none'); errorEl.classList.remove('d-none'); return; }
+                        setTimeout(tryInit, 200); return;
+                    }
+                    loadingEl?.remove();
+                    google.accounts.id.initialize({ client_id: cfg.client_id, callback: handleGoogleCallback, nonce: _googleNonce });
+                    google.accounts.id.renderButton(btnWrap, { theme: 'outline', size: 'large', width: '100%', text: 'signin_with', locale: 'he' });
+                }
+                tryInit();
+            } catch (e) {
+                section.classList.remove('d-none');
+                loadingEl?.classList.add('d-none');
+                errorEl.classList.remove('d-none');
+            }
+        }
+        initGoogleSSO();
+
+        /* ---------- Toggle email form ---------- */
+        document.getElementById('toggle-email-form').addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = document.getElementById('email-form-section');
+            section.classList.toggle('d-none');
+            e.currentTarget.setAttribute('aria-expanded', !section.classList.contains('d-none'));
+            if (!section.classList.contains('d-none')) document.getElementById('email').focus();
+        });
+
+        setTimeout(() => {
+            if (document.getElementById('google-sso-section').classList.contains('d-none')) {
+                document.getElementById('email-form-section').classList.remove('d-none');
+            }
+        }, 1500);
+
+        /* ---------- Email login ---------- */
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const alertBox = document.getElementById('alert-box');
+            alertBox.classList.add('d-none');
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> מתחבר...';
+            try {
+                const body = new URLSearchParams();
+                body.append('username', document.getElementById('email').value);
+                body.append('password', document.getElementById('password').value);
+                const res = await fetch('/auth/login', { method: 'POST', body });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Login failed');
+                }
+                const data = await res.json();
+                localStorage.setItem('token', data.access_token);
+                const meRes = await fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + data.access_token } });
+                if (meRes.ok) localStorage.setItem('user', JSON.stringify(await meRes.json()));
+                window.location.href = '/static/index.html';
+            } catch (err) {
+                alertBox.textContent = err.message;
+                alertBox.classList.remove('d-none');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> כניסה';
+            }
+        });
+    </script>
+</body>
+</html>

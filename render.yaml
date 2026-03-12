@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: case-ims
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        value: "sqlite:////data/ims.db"
+      - key: UPLOAD_DIR
+        value: "/data/uploads"
+      - key: RUNTIME_MODE
+        value: "cloud"
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+    disk:
+      name: case-ims-data
+      mountPath: /data
+      sizeGB: 1
