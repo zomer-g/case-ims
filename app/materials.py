@@ -58,12 +58,60 @@ def _extract_page_count(file_path: str, ext: str) -> Optional[int]:
     return None
 
 
+def _resolve_folder_from_path(db: Session, case_id: Optional[int], relative_path: str) -> Optional[int]:
+    """Given a relative path like 'folder/subfolder', auto-create Folder records and return leaf folder_id."""
+    if not relative_path or not case_id:
+        return None
+
+    # Sanitize: remove leading/trailing slashes, normalize separators
+    relative_path = relative_path.replace("\\", "/").strip("/")
+    if not relative_path:
+        return None
+
+    parts = [p.strip() for p in relative_path.split("/") if p.strip()]
+    if not parts:
+        return None
+
+    parent_id = None
+    for part in parts:
+        # Sanitize folder name
+        safe_name = part.replace("..", "_").replace("\x00", "")[:255]
+        if not safe_name:
+            safe_name = "folder"
+
+        # Look for existing folder with this name under same parent
+        existing = db.query(models.Folder).filter(
+            models.Folder.case_id == case_id,
+            models.Folder.name == safe_name,
+            models.Folder.parent_folder_id == parent_id,
+            models.Folder.source_type == "upload",
+        ).first()
+
+        if existing:
+            parent_id = existing.id
+        else:
+            # Build full path for display
+            folder = models.Folder(
+                case_id=case_id,
+                name=safe_name,
+                path=relative_path,
+                source_type="upload",
+                parent_folder_id=parent_id,
+            )
+            db.add(folder)
+            db.flush()  # get the id
+            parent_id = folder.id
+
+    return parent_id
+
+
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_material(
     request: Request,
     file: UploadFile = File(...),
     case_id: Optional[int] = Form(None),
     folder_id: Optional[int] = Form(None),
+    relative_path: Optional[str] = Form(None),
     provider: str = Form("deepseek"),
     is_public: Optional[bool] = Form(None),
     db: Session = Depends(get_db),
@@ -76,6 +124,10 @@ async def upload_material(
             raise HTTPException(status_code=403, detail=f"\u05d4\u05d2\u05e2\u05ea \u05dc\u05de\u05db\u05e1\u05d4 {current_user.max_upload_docs} \u05e7\u05d1\u05e6\u05d9\u05dd")
     if current_user.max_upload_docs == -1:
         raise HTTPException(status_code=403, detail="\u05d4\u05e2\u05dc\u05d0\u05ea \u05e7\u05d1\u05e6\u05d9\u05dd \u05d7\u05e1\u05d5\u05de\u05d4")
+
+    # Auto-resolve folder from relative_path if provided and no explicit folder_id
+    if relative_path and not folder_id and case_id:
+        folder_id = _resolve_folder_from_path(db, case_id, relative_path)
 
     # Check file size
     content = await file.read()
@@ -127,9 +179,15 @@ async def upload_material(
     visibility = is_public if is_public is not None else (current_user.default_visibility == "public")
     page_count = _extract_page_count(file_path, ext)
 
+    # Store original relative path for folder imports
+    original_path = None
+    if relative_path:
+        original_path = (relative_path.replace("\\", "/").strip("/") + "/" + safe_filename)
+
     material = models.Material(
         owner_id=current_user.id, case_id=case_id, folder_id=folder_id,
         filename=safe_filename, file_path=file_path,
+        original_path=original_path,
         file_type=file_type, mime_type=mime_type,
         file_size=len(content), file_hash=file_hash,
         is_public=visibility, page_count=page_count,

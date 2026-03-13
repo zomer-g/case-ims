@@ -182,65 +182,177 @@
     }
 
     function toggleUploadZone() {
-        const zone = document.getElementById('upload-zone');
-        if (IMS.token) zone?.classList.remove('d-none');
-        else zone?.classList.add('d-none');
+        const wrapper = document.getElementById('upload-zone-wrapper');
+        if (IMS.token) wrapper?.classList.remove('d-none');
+        else wrapper?.classList.add('d-none');
     }
 
     // ---- Upload ----
     function setupUpload() {
         toggleUploadZone();
         const zone = document.getElementById('upload-zone');
-        const input = document.getElementById('file-input');
-        if (!zone || !input) return;
+        const fileInput = document.getElementById('file-input');
+        const folderInput = document.getElementById('folder-input');
+        const uploadFilesBtn = document.getElementById('upload-files-btn');
+        const uploadFolderBtn = document.getElementById('upload-folder-btn');
+        if (!zone || !fileInput) return;
 
-        zone.addEventListener('click', () => input.click());
-        zone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+        // Click on zone opens file picker
+        zone.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return; // don't trigger from buttons
+            fileInput.click();
+        });
+        zone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
 
+        // Dedicated buttons
+        if (uploadFilesBtn) uploadFilesBtn.addEventListener('click', () => fileInput.click());
+        if (uploadFolderBtn && folderInput) uploadFolderBtn.addEventListener('click', () => folderInput.click());
+
+        // Drag and drop — supports both files and folders
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-        zone.addEventListener('drop', (e) => {
+        zone.addEventListener('drop', async (e) => {
             e.preventDefault();
             zone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+            const items = e.dataTransfer.items;
+            if (items && items.length) {
+                const fileEntries = [];
+                const promises = [];
+                for (let i = 0; i < items.length; i++) {
+                    const entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+                    if (entry) {
+                        promises.push(traverseEntry(entry, '', fileEntries));
+                    } else if (items[i].kind === 'file') {
+                        const f = items[i].getAsFile();
+                        if (f) fileEntries.push({ file: f, relativePath: '' });
+                    }
+                }
+                await Promise.all(promises);
+                if (fileEntries.length) uploadFiles(fileEntries);
+            }
         });
 
-        input.addEventListener('change', () => {
-            if (input.files.length) uploadFiles(input.files);
-            input.value = '';
+        // File input change
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) {
+                const entries = Array.from(fileInput.files).map(f => ({ file: f, relativePath: '' }));
+                uploadFiles(entries);
+            }
+            fileInput.value = '';
+        });
+
+        // Folder input change
+        if (folderInput) {
+            folderInput.addEventListener('change', () => {
+                if (folderInput.files.length) {
+                    const entries = Array.from(folderInput.files).map(f => {
+                        // webkitRelativePath = "folderName/subFolder/file.txt"
+                        const relPath = f.webkitRelativePath || '';
+                        const parts = relPath.split('/');
+                        // Remove the filename from the path to get folder path
+                        const folderPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+                        return { file: f, relativePath: folderPath };
+                    });
+                    uploadFiles(entries);
+                }
+                folderInput.value = '';
+            });
+        }
+    }
+
+    // Recursively traverse dropped directory entries
+    function traverseEntry(entry, basePath, results) {
+        return new Promise((resolve) => {
+            if (entry.isFile) {
+                entry.file((file) => {
+                    results.push({ file, relativePath: basePath });
+                    resolve();
+                }, () => resolve());
+            } else if (entry.isDirectory) {
+                const reader = entry.createReader();
+                const dirPath = basePath ? basePath + '/' + entry.name : entry.name;
+                const readAll = (entries) => {
+                    reader.readEntries((batch) => {
+                        if (batch.length === 0) {
+                            Promise.all(entries).then(resolve);
+                        } else {
+                            const newPromises = batch.map(e => traverseEntry(e, dirPath, results));
+                            readAll([...entries, ...newPromises]);
+                        }
+                    }, () => resolve());
+                };
+                readAll([]);
+            } else {
+                resolve();
+            }
         });
     }
 
-    async function uploadFiles(files) {
+    async function uploadFiles(fileEntries) {
         const progress = document.getElementById('upload-progress');
+        const summary = document.getElementById('upload-summary');
         const caseId = currentCaseId;
+        const total = fileEntries.length;
+        let succeeded = 0, failed = 0;
 
-        for (const file of files) {
-            const id = 'up-' + Math.random().toString(36).substring(2, 8);
-            progress.innerHTML += `
-                <div id="${id}" class="d-flex align-items-center gap-2 mb-1">
-                    <i class="fas fa-spinner fa-spin text-light"></i>
-                    <span class="text-light small">${IMS.esc(file.name)}</span>
-                </div>
-            `;
+        if (summary) {
+            summary.classList.remove('d-none');
+            summary.textContent = `מעלה 0/${total} קבצים...`;
+        }
 
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                if (caseId) formData.append('case_id', caseId);
+        // Upload up to 3 files concurrently
+        const CONCURRENCY = 3;
+        let index = 0;
 
-                await IMS.api('/materials/upload', { method: 'POST', body: formData });
+        async function uploadNext() {
+            while (index < fileEntries.length) {
+                const i = index++;
+                const { file, relativePath } = fileEntries[i];
+                const id = 'up-' + Math.random().toString(36).substring(2, 8);
+                const displayName = relativePath ? relativePath + '/' + file.name : file.name;
 
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = `<i class="fas fa-check text-success"></i><span class="text-light small">${IMS.esc(file.name)} — הועלה</span>`;
-            } catch (err) {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = `<i class="fas fa-times text-danger"></i><span class="text-light small">${IMS.esc(file.name)} — ${IMS.esc(err.message)}</span>`;
+                progress.innerHTML += `
+                    <div id="${id}" class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fas fa-spinner fa-spin text-light"></i>
+                        <span class="text-light small">${IMS.esc(displayName)}</span>
+                    </div>
+                `;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    if (caseId) formData.append('case_id', caseId);
+                    if (relativePath) formData.append('relative_path', relativePath);
+
+                    await IMS.api('/materials/upload', { method: 'POST', body: formData });
+
+                    succeeded++;
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = `<i class="fas fa-check text-success"></i><span class="text-light small">${IMS.esc(displayName)} — הועלה</span>`;
+                } catch (err) {
+                    failed++;
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = `<i class="fas fa-times text-danger"></i><span class="text-light small">${IMS.esc(displayName)} — ${IMS.esc(err.message)}</span>`;
+                }
+
+                if (summary) summary.textContent = `מעלה ${succeeded + failed}/${total} קבצים... (${succeeded} הצליחו, ${failed} נכשלו)`;
             }
         }
 
-        // Clear progress after 3 seconds and reload
-        setTimeout(() => { progress.innerHTML = ''; loadMaterials(); }, 3000);
+        const workers = [];
+        for (let w = 0; w < CONCURRENCY; w++) workers.push(uploadNext());
+        await Promise.all(workers);
+
+        if (summary) {
+            summary.textContent = `הסתיים: ${succeeded}/${total} קבצים הועלו בהצלחה` + (failed ? ` (${failed} נכשלו)` : '');
+        }
+
+        // Clear progress after 4 seconds and reload
+        setTimeout(() => {
+            progress.innerHTML = '';
+            if (summary) { summary.classList.add('d-none'); summary.textContent = ''; }
+            loadMaterials();
+        }, 4000);
     }
 
     // ---- Material Detail Modal ----
@@ -294,6 +406,36 @@
                 metaHtml += '</table></div>';
             }
 
+            // Custom metadata (non-AI)
+            let customMetaHtml = '';
+            const customKeys = Object.keys(mat.metadata_json || {}).filter(k => k !== 'ai_analysis');
+            if (customKeys.length) {
+                customMetaHtml = '<h6 class="mt-3"><i class="fas fa-database me-1"></i>מטא-דאטה</h6><div class="table-responsive"><table class="table table-sm table-bordered">';
+                for (const key of customKeys) {
+                    const val = mat.metadata_json[key];
+                    const display = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val);
+                    customMetaHtml += `<tr><td class="fw-bold" style="width:30%">${E(key)}</td><td>${E(display)}</td></tr>`;
+                }
+                customMetaHtml += '</table></div>';
+            }
+
+            // Load linked entities and groups for this material
+            let linkedEntitiesHtml = '';
+            let groupsHtml = '';
+            try {
+                const entities = await IMS.api(`/entities/?size=200`);
+                // Filter entities that link to this material — we'll show a simplified view
+                // For a full implementation, add a /materials/{id}/entities endpoint
+                const entLinks = entities.entities ? entities.entities.filter(e => e.material_link_count > 0).slice(0, 10) : [];
+                if (entLinks.length) {
+                    linkedEntitiesHtml = `<h6 class="mt-3"><i class="fas fa-project-diagram me-1"></i>ישויות קשורות</h6><div class="d-flex flex-wrap gap-1">`;
+                    for (const e of entLinks) {
+                        linkedEntitiesHtml += `<a href="/static/entities.html" class="badge text-decoration-none" style="background:${IMS.entityTypeColor(e.entity_type)}">${E(e.name)}</a>`;
+                    }
+                    linkedEntitiesHtml += `</div>`;
+                }
+            } catch {}
+
             body.innerHTML = `
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -311,6 +453,9 @@
                 </div>
                 ${mat.content_summary ? `<h6><i class="fas fa-align-right me-1"></i>תקציר</h6><p>${E(mat.content_summary)}</p>` : ''}
                 ${metaHtml}
+                ${customMetaHtml}
+                ${linkedEntitiesHtml}
+                ${groupsHtml}
                 ${mat.content_text ? `
                     <h6 class="mt-3"><i class="fas fa-file-alt me-1"></i>תוכן מופק</h6>
                     <div class="content-text-preview">${E(mat.content_text.substring(0, 5000))}${mat.content_text.length > 5000 ? '\n\n... (קוצר)' : ''}</div>

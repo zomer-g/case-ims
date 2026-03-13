@@ -39,13 +39,14 @@
         /* Upload zone */
         .upload-zone {
             border: 2px dashed #adb5bd; border-radius: 0.75rem;
-            padding: 1rem 1.5rem; text-align: center; cursor: pointer;
-            transition: all 0.3s; background: white;
+            padding: 1.2rem 1.5rem; text-align: center; cursor: pointer;
+            transition: all 0.3s; background: white; color: #495057;
         }
         .upload-zone:hover, .upload-zone.dragover {
             border-color: var(--brand); background: #e8f4f8;
         }
         .upload-zone i.upload-icon { font-size: 1.3rem; color: #495057; }
+        .upload-zone span { color: #495057; }
 
         /* Material cards */
         .mat-card {
@@ -91,6 +92,9 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link active" href="/static/index.html"><i class="fas fa-file-alt me-1"></i>חומרים</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/static/entities.html"><i class="fas fa-project-diagram me-1"></i>ישויות</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/static/groups.html"><i class="fas fa-layer-group me-1"></i>קבוצות</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/static/timeline.html"><i class="fas fa-stream me-1"></i>ציר זמן</a></li>
                     <li class="nav-item d-none" id="nav-admin"><a class="nav-link" href="/static/admin.html"><i class="fas fa-cog me-1"></i>ניהול</a></li>
                 </ul>
                 <ul class="navbar-nav">
@@ -131,12 +135,24 @@
             </div>
 
             <!-- Upload -->
-            <div class="upload-zone d-none" id="upload-zone" role="button" tabindex="0" aria-label="גרור קבצים או לחץ להעלאה">
-                <i class="fas fa-cloud-upload-alt upload-icon me-2"></i>
-                <span>גרור קבצים לכאן או לחץ להעלאה</span>
-                <input type="file" id="file-input" class="d-none" multiple accept=".pdf,.doc,.docx,.txt,.html,.png,.jpg,.jpeg,.mp3,.wav,.m4a,.mp4,.avi,.mov,.csv,.xlsx,.pptx">
+            <div class="d-none" id="upload-zone-wrapper">
+                <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="גרור קבצים או לחץ להעלאה">
+                    <i class="fas fa-cloud-upload-alt upload-icon me-2"></i>
+                    <span>גרור קבצים או תיקיות לכאן, או לחץ לבחירה</span>
+                    <input type="file" id="file-input" class="d-none" multiple accept=".pdf,.doc,.docx,.txt,.html,.png,.jpg,.jpeg,.mp3,.wav,.m4a,.mp4,.avi,.mov,.csv,.xlsx,.pptx,.tiff,.tif,.bmp,.webp,.gif,.ogg,.flac,.aac,.mkv,.webm,.xls,.tsv">
+                    <input type="file" id="folder-input" class="d-none" webkitdirectory directory multiple>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-sm btn-outline-light" id="upload-files-btn" title="בחר קבצים">
+                        <i class="fas fa-file me-1"></i>בחר קבצים
+                    </button>
+                    <button class="btn btn-sm btn-outline-light" id="upload-folder-btn" title="בחר תיקייה">
+                        <i class="fas fa-folder me-1"></i>בחר תיקייה
+                    </button>
+                </div>
             </div>
             <div id="upload-progress" class="mt-2"></div>
+            <div id="upload-summary" class="mt-1 d-none text-light small"></div>
 
             <!-- Filters -->
             <div class="d-flex gap-2 mt-3 flex-wrap align-items-center">

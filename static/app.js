@@ -135,6 +135,31 @@ const IMS = {
         }
     },
 
+    // Entity type icon + label
+    entityTypeIcon(type) {
+        const map = {
+            person: 'fas fa-user',
+            event: 'fas fa-calendar-alt',
+            corporation: 'fas fa-building',
+            topic: 'fas fa-tag',
+        };
+        return map[type] || 'fas fa-circle';
+    },
+    entityTypeLabel(type) {
+        const map = { person: 'אדם', event: 'אירוע', corporation: 'תאגיד', topic: 'נושא' };
+        return map[type] || type;
+    },
+    entityTypeColor(type) {
+        const map = { person: '#0d6efd', event: '#dc3545', corporation: '#198754', topic: '#6f42c1' };
+        return map[type] || '#6c757d';
+    },
+
+    // Short date (no time)
+    formatDateShort(dateStr) {
+        if (!dateStr) return '-';
+        try { return new Date(dateStr).toLocaleDateString('he-IL'); } catch { return dateStr; }
+    },
+
     // Toast notification
     toast(message, type = 'info') {
         const container = document.getElementById('toast-container') || (() => {
