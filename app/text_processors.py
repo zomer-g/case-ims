@@ -3,7 +3,7 @@ import re
 import logging
 from typing import Optional
 
-logger = logging.getLogger("case-ims.text-processors")
+logger = logging.getLogger("case-dms.text-processors")
 
 
 # --- CID character fix for broken PDF font encoding ---

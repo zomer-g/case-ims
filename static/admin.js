@@ -1,5 +1,5 @@
 /**
- * admin.js — Admin panel logic for Case-IMS.
+ * admin.js — Admin panel logic for Case-DMS.
  * Includes prompt builder, entity mapping, and system management.
  */
 
@@ -11,7 +11,7 @@
     let entityMappings = [];  // [{field, entity_type, is_array}]
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (!IMS.token || !IMS.user?.is_admin) {
+        if (!DMS.token || !DMS.user?.is_admin) {
             window.location.href = '/static/login.html';
             return;
         }
@@ -29,7 +29,7 @@
     // ---- Stats ----
     async function loadStats() {
         try {
-            const data = await IMS.api('/admin/stats');
+            const data = await DMS.api('/admin/stats');
             document.getElementById('stat-users').textContent = data.users;
             document.getElementById('stat-materials').textContent = data.materials;
             document.getElementById('stat-cases').textContent = data.cases;
@@ -40,13 +40,13 @@
     // ---- Prompts ----
     async function loadPrompts() {
         try {
-            const prompts = await IMS.api('/admin/prompts/');
+            const prompts = await DMS.api('/admin/prompts/');
             const container = document.getElementById('prompts-list');
             if (prompts.length === 0) {
                 container.innerHTML = '<p class="text-muted">אין חוקי פרומפט.</p>';
                 return;
             }
-            const E = IMS.esc;
+            const E = DMS.esc;
             container.innerHTML = prompts.map(p => {
                 // Parse entity mappings count
                 let mappingCount = 0;
@@ -83,9 +83,9 @@
                 btn.addEventListener('click', async () => {
                     if (!confirm('למחוק את החוק?')) return;
                     try {
-                        await IMS.api(`/admin/prompts/${btn.dataset.id}`, { method: 'DELETE' });
+                        await DMS.api(`/admin/prompts/${btn.dataset.id}`, { method: 'DELETE' });
                         loadPrompts();
-                    } catch (err) { IMS.toast(err.message, 'error'); }
+                    } catch (err) { DMS.toast(err.message, 'error'); }
                 });
             });
         } catch (err) {
@@ -152,19 +152,19 @@
                 is_active: document.getElementById('edit-prompt-active').checked,
                 json_schema: jsonSchema,
             };
-            if (!data.name || !data.prompt_text) { IMS.toast('שם וטקסט חובה', 'error'); return; }
+            if (!data.name || !data.prompt_text) { DMS.toast('שם וטקסט חובה', 'error'); return; }
 
             try {
                 if (editingPromptId) {
-                    await IMS.api(`/admin/prompts/${editingPromptId}`, { method: 'PUT', json: data });
-                    IMS.toast('החוק עודכן בהצלחה', 'success');
+                    await DMS.api(`/admin/prompts/${editingPromptId}`, { method: 'PUT', json: data });
+                    DMS.toast('החוק עודכן בהצלחה', 'success');
                 } else {
-                    await IMS.api('/admin/prompts/', { method: 'POST', json: data });
-                    IMS.toast('החוק נוצר', 'success');
+                    await DMS.api('/admin/prompts/', { method: 'POST', json: data });
+                    DMS.toast('החוק נוצר', 'success');
                 }
                 bootstrap.Modal.getInstance(document.getElementById('editPromptModal'))?.hide();
                 loadPrompts();
-            } catch (err) { IMS.toast(err.message, 'error'); }
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
     }
 
@@ -174,8 +174,8 @@
             const name = document.getElementById('builder-new-field-name').value.trim();
             const type = document.getElementById('builder-new-field-type').value;
             const desc = document.getElementById('builder-new-field-desc').value.trim();
-            if (!name) { IMS.toast('הכנס שם שדה', 'error'); return; }
-            if (builderFields.some(f => f.name === name)) { IMS.toast('שדה קיים', 'warning'); return; }
+            if (!name) { DMS.toast('הכנס שם שדה', 'error'); return; }
+            if (builderFields.some(f => f.name === name)) { DMS.toast('שדה קיים', 'warning'); return; }
             builderFields.push({ name, type, description: desc });
             document.getElementById('builder-new-field-name').value = '';
             document.getElementById('builder-new-field-desc').value = '';
@@ -188,7 +188,7 @@
     function renderBuilderFields() {
         const container = document.getElementById('builder-fields-list');
         if (!container) return;
-        const E = IMS.esc;
+        const E = DMS.esc;
         const typeLabels = { string: 'טקסט', array: 'רשימה', date: 'תאריך', number: 'מספר' };
         const typeIcons = { string: 'fas fa-font', array: 'fas fa-list', date: 'fas fa-calendar', number: 'fas fa-hashtag' };
 
@@ -217,7 +217,7 @@
     function generatePrompt() {
         const freeText = document.getElementById('builder-free-text').value.trim();
         if (!builderFields.length && !freeText) {
-            IMS.toast('הוסף שדות או כתוב תיאור חופשי', 'error');
+            DMS.toast('הוסף שדות או כתוב תיאור חופשי', 'error');
             return;
         }
 
@@ -259,7 +259,7 @@
         const rawTab = document.querySelector('a[href="#prompt-tab-raw"]');
         if (rawTab) bootstrap.Tab.getOrCreateInstance(rawTab).show();
 
-        IMS.toast('פרומפט נוצר! ניתן לערוך ידנית בלשונית "עריכה ידנית"', 'success');
+        DMS.toast('פרומפט נוצר! ניתן לערוך ידנית בלשונית "עריכה ידנית"', 'success');
     }
 
     // ---- Entity Mappings ----
@@ -268,8 +268,8 @@
             const field = document.getElementById('mapping-field-name').value.trim();
             const entityType = document.getElementById('mapping-entity-type').value;
             const isArray = document.getElementById('mapping-is-array').checked;
-            if (!field) { IMS.toast('הכנס שם שדה', 'error'); return; }
-            if (entityMappings.some(m => m.field === field)) { IMS.toast('מיפוי קיים לשדה זה', 'warning'); return; }
+            if (!field) { DMS.toast('הכנס שם שדה', 'error'); return; }
+            if (entityMappings.some(m => m.field === field)) { DMS.toast('מיפוי קיים לשדה זה', 'warning'); return; }
             entityMappings.push({ field, entity_type: entityType, is_array: isArray });
             document.getElementById('mapping-field-name').value = '';
             renderEntityMappings();
@@ -279,7 +279,7 @@
     function renderEntityMappings() {
         const container = document.getElementById('entity-mappings-list');
         if (!container) return;
-        const E = IMS.esc;
+        const E = DMS.esc;
         const typeLabels = { person: 'אדם', corporation: 'תאגיד', topic: 'נושא', event: 'אירוע' };
         const typeIcons = {
             person: 'fas fa-user', corporation: 'fas fa-building',
@@ -318,7 +318,7 @@
     // ---- Fields ----
     async function loadFields() {
         try {
-            const fields = await IMS.api('/admin/fields/');
+            const fields = await DMS.api('/admin/fields/');
             const container = document.getElementById('fields-list');
             if (fields.length === 0) {
                 container.innerHTML = '<p class="text-muted">לא זוהו שדות עדיין.</p>';
@@ -328,13 +328,13 @@
                 <div class="table-responsive">
                 <table class="table table-sm table-striped">
                     <thead><tr><th>מפתח</th><th>שם ידידותי</th><th>סוג</th><th>מערך</th><th>זוהה לראשונה</th></tr></thead>
-                    <tbody>${fields.map(f => { const E = IMS.esc; return `
+                    <tbody>${fields.map(f => { const E = DMS.esc; return `
                         <tr>
                             <td><code>${E(f.field_key)}</code></td>
                             <td>${E(f.friendly_name) || '-'}</td>
                             <td>${E(f.field_type) || '-'}</td>
                             <td>${f.is_array ? '<i class="fas fa-check text-success"></i>' : ''}</td>
-                            <td>${IMS.formatDate(f.first_seen)}</td>
+                            <td>${DMS.formatDate(f.first_seen)}</td>
                         </tr>
                     `; }).join('')}</tbody>
                 </table>
@@ -348,7 +348,7 @@
     // ---- Users ----
     async function loadUsers() {
         try {
-            const users = await IMS.api('/users/');
+            const users = await DMS.api('/users/');
             const container = document.getElementById('users-list');
             container.innerHTML = `
                 <div class="table-responsive">
@@ -357,10 +357,10 @@
                     <tbody>${users.map(u => `
                         <tr>
                             <td>${u.id}</td>
-                            <td>${IMS.esc(u.email)}</td>
-                            <td>${IMS.esc(u.auth_provider)}</td>
+                            <td>${DMS.esc(u.email)}</td>
+                            <td>${DMS.esc(u.auth_provider)}</td>
                             <td>${u.is_admin ? '<i class="fas fa-check text-success"></i>' : ''}</td>
-                            <td>${IMS.formatDate(u.created_at)}</td>
+                            <td>${DMS.formatDate(u.created_at)}</td>
                         </tr>
                     `).join('')}</tbody>
                 </table>
@@ -373,7 +373,7 @@
     // ---- Activity ----
     async function loadActivity() {
         try {
-            const data = await IMS.api('/admin/activity?size=30');
+            const data = await DMS.api('/admin/activity?size=30');
             const container = document.getElementById('activity-list');
             if (data.items.length === 0) { container.innerHTML = '<p class="text-muted">אין פעילות.</p>'; return; }
             container.innerHTML = `
@@ -382,9 +382,9 @@
                     <thead><tr><th>זמן</th><th>אירוע</th><th>פרטים</th><th>משתמש</th></tr></thead>
                     <tbody>${data.items.map(a => `
                         <tr>
-                            <td><small>${IMS.formatDate(a.timestamp)}</small></td>
-                            <td><span class="badge bg-secondary">${IMS.esc(a.event_type)}</span></td>
-                            <td><small>${IMS.esc(a.detail) || '-'}</small></td>
+                            <td><small>${DMS.formatDate(a.timestamp)}</small></td>
+                            <td><span class="badge bg-secondary">${DMS.esc(a.event_type)}</span></td>
+                            <td><small>${DMS.esc(a.detail) || '-'}</small></td>
                             <td>${a.user_id || '-'}</td>
                         </tr>
                     `).join('')}</tbody>
@@ -397,7 +397,7 @@
     // ---- Settings ----
     async function loadSettings() {
         try {
-            const settings = await IMS.api('/admin/system/settings');
+            const settings = await DMS.api('/admin/system/settings');
             const container = document.getElementById('settings-list');
             if (settings.length === 0) { container.innerHTML = '<p class="text-muted">אין הגדרות.</p>'; return; }
             container.innerHTML = `
@@ -406,9 +406,9 @@
                     <thead><tr><th>מפתח</th><th>ערך</th><th>עודכן</th></tr></thead>
                     <tbody>${settings.map(s => `
                         <tr>
-                            <td><code>${IMS.esc(s.key)}</code></td>
-                            <td>${IMS.esc(s.value)}</td>
-                            <td>${s.updated_at ? IMS.formatDate(s.updated_at) : '-'}</td>
+                            <td><code>${DMS.esc(s.key)}</code></td>
+                            <td>${DMS.esc(s.value)}</td>
+                            <td>${s.updated_at ? DMS.formatDate(s.updated_at) : '-'}</td>
                         </tr>
                     `).join('')}</tbody>
                 </table>

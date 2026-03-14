@@ -9,7 +9,7 @@ def _generate_secret() -> str:
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "sqlite:///./ims.db"
+    DATABASE_URL: str = "sqlite:///./dms.db"
 
     # JWT
     SECRET_KEY: str = _generate_secret()
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # App
-    APP_NAME: str = "Case-IMS"
+    APP_NAME: str = "Case-DMS"
     DEBUG: bool = False
     UPLOAD_DIR: str = "uploads"
 

@@ -7,7 +7,7 @@ from app.database import get_db
 from app.auth import get_current_admin_user
 from app.models import PromptRule, User
 
-logger = logging.getLogger("case-ims.admin-prompts")
+logger = logging.getLogger("case-dms.admin-prompts")
 
 router = APIRouter(prefix="/admin/prompts", tags=["Admin – Prompts"])
 

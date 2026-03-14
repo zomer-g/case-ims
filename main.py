@@ -14,7 +14,7 @@ _log_formatter = logging.Formatter(
 _log_handler = logging.StreamHandler()
 _log_handler.setFormatter(_log_formatter)
 
-_app_logger = logging.getLogger("case-ims")
+_app_logger = logging.getLogger("case-dms")
 _app_logger.setLevel(logging.DEBUG if os.getenv("DEBUG", "False").lower() == "true" else logging.INFO)
 _app_logger.addHandler(_log_handler)
 _app_logger.propagate = False
@@ -29,7 +29,7 @@ from app import entities, folders, groups, timeline, prompt_runner
 from app.config import settings
 from app.models import User, SiteSetting
 
-logger = logging.getLogger("case-ims")
+logger = logging.getLogger("case-dms")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)

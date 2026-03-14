@@ -4,7 +4,7 @@ import logging
 from app.database import SessionLocal
 from app.models import PromptRule, SiteSetting
 
-logger = logging.getLogger("case-ims.seeders")
+logger = logging.getLogger("case-dms.seeders")
 
 
 def run_seeders():
@@ -58,7 +58,7 @@ def _seed_base_prompt(db):
 def _seed_site_settings(db):
     """Seed default site settings if they don't exist."""
     defaults = {
-        "app_title": "Case-IMS",
+        "app_title": "Case-DMS",
         "app_subtitle": "מערכת ניהול חומרי חקירה",
     }
     for key, value in defaults.items():

@@ -6,7 +6,7 @@ from app.auth import get_current_user, get_current_admin_user
 from app.models import Case, Material, Entity, User
 from app.schemas import CaseCreate, CaseUpdate, CaseResponse
 
-logger = logging.getLogger("case-ims.cases")
+logger = logging.getLogger("case-dms.cases")
 
 router = APIRouter(prefix="/cases", tags=["Cases"])
 

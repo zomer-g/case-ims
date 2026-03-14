@@ -21,7 +21,7 @@ from app import llm_service
 from app.activity import log_activity
 from app.extractors import classify_file_type
 
-logger = logging.getLogger("case-ims.materials")
+logger = logging.getLogger("case-dms.materials")
 
 UPLOAD_DIR = settings.UPLOAD_DIR
 router = APIRouter(prefix="/materials", tags=["Materials"])

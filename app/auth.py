@@ -14,7 +14,7 @@ from slowapi.util import get_remote_address
 
 from app.config import settings
 
-logger = logging.getLogger("case-ims.auth")
+logger = logging.getLogger("case-dms.auth")
 from app.database import get_db
 from app.models import User, Material, Feedback, SiteSetting
 from app.schemas import TokenData, UserCreate, UserResponse, Token, ChangePasswordRequest, GoogleAuthRequest, FeedbackCreate

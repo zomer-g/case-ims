@@ -7,7 +7,7 @@ from app.models import ProcessingQueue, Material, User
 from app.schemas import QueueAddRequest, QueueStatusResponse, QueueStatusItem
 from app import llm_service
 
-logger = logging.getLogger("case-ims.queue-api")
+logger = logging.getLogger("case-dms.queue-api")
 
 router = APIRouter(prefix="/queue", tags=["Queue"])
 

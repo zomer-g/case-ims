@@ -1,5 +1,5 @@
 """
-prompt_runner.py — Prompt management and execution for Case-IMS.
+prompt_runner.py — Prompt management and execution for Case-DMS.
 Allows creating reusable prompts and running them against selected materials.
 """
 import logging
@@ -12,7 +12,7 @@ from app.database import get_db
 from app.auth import get_current_user
 from app import models, llm_service
 
-logger = logging.getLogger("case-ims.prompts")
+logger = logging.getLogger("case-dms.prompts")
 
 router = APIRouter(prefix="/prompts", tags=["Prompts"])
 

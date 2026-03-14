@@ -7,7 +7,7 @@ from app.database import get_db
 from app.auth import get_current_admin_user
 from app.models import SiteSetting, User
 
-logger = logging.getLogger("case-ims.admin-system")
+logger = logging.getLogger("case-dms.admin-system")
 
 router = APIRouter(prefix="/admin/system", tags=["Admin – System"])
 

@@ -1,9 +1,9 @@
 /**
- * app.js — Shared utilities for Case-IMS frontend.
+ * app.js — Shared utilities for Case-DMS frontend.
  * Handles auth state, API calls, and common UI helpers.
  */
 
-const IMS = {
+const DMS = {
     token: localStorage.getItem('token'),
     user: null,
     currentCaseId: null,
@@ -278,4 +278,4 @@ const IMS = {
 };
 
 // Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => IMS.init());
+document.addEventListener('DOMContentLoaded', () => DMS.init());

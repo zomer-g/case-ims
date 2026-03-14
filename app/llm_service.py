@@ -7,7 +7,7 @@ from typing import Optional
 from openai import OpenAI
 from app.config import settings
 
-logger = logging.getLogger("case-ims.llm")
+logger = logging.getLogger("case-dms.llm")
 
 DEFAULT_MAX_TOKENS = 2000
 MAX_TEXT_LENGTH = settings.MAX_TEXT_LENGTH

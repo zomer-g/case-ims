@@ -12,7 +12,7 @@ from app.schemas import TimelineEventCreate, TimelineEventUpdate, TimelineGenera
 from app.activity import log_activity
 from app import llm_service
 
-logger = logging.getLogger("case-ims.timeline")
+logger = logging.getLogger("case-dms.timeline")
 
 router = APIRouter(prefix="/timeline", tags=["Timeline"])
 

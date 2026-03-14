@@ -11,7 +11,7 @@ from app.schemas import GroupCreate, GroupUpdate, GroupAddMembers
 from app.activity import log_activity
 from app import llm_service
 
-logger = logging.getLogger("case-ims.groups")
+logger = logging.getLogger("case-dms.groups")
 
 router = APIRouter(prefix="/groups", tags=["Material Groups"])
 

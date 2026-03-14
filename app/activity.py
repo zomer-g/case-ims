@@ -4,7 +4,7 @@ import logging
 from sqlalchemy.orm import Session
 from app.models import ActivityLog
 
-logger = logging.getLogger("case-ims.activity")
+logger = logging.getLogger("case-dms.activity")
 
 
 def _parse_ua(raw: str) -> str:

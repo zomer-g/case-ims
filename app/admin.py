@@ -9,7 +9,7 @@ from app.database import get_db
 from app.auth import get_current_admin_user
 from app.models import User, Material, Case, Entity, ProcessingQueue, ActivityLog
 
-logger = logging.getLogger("case-ims.admin")
+logger = logging.getLogger("case-dms.admin")
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 

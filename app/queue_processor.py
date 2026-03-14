@@ -10,7 +10,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.database import SessionLocal, get_session
 from app import models
 
-logger = logging.getLogger("case-ims.queue")
+logger = logging.getLogger("case-dms.queue")
 
 _worker_thread: threading.Thread | None = None
 _stop_event = threading.Event()

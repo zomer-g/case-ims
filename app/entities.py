@@ -16,7 +16,7 @@ from app.schemas import (
 )
 from app.activity import log_activity
 
-logger = logging.getLogger("case-ims.entities")
+logger = logging.getLogger("case-dms.entities")
 
 router = APIRouter(prefix="/entities", tags=["Entities"])
 

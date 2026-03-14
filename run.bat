@@ -1,5 +1,5 @@
 @echo off
-title Case-IMS Server
+title Case-DMS Server
 cd /d "%~dp0"
 
 :: Create .env if missing
@@ -40,7 +40,7 @@ if not exist uploads mkdir uploads
 :: Start server
 echo.
 echo ========================================
-echo   Case-IMS running at http://localhost:8000
+echo   Case-DMS running at http://localhost:8000
 echo   Press Ctrl+C to stop
 echo ========================================
 echo.

@@ -8,7 +8,7 @@ from app.auth import get_current_user
 from app.models import Folder, Material, User
 from app.schemas import FolderCreate, FolderResponse
 
-logger = logging.getLogger("case-ims.folders")
+logger = logging.getLogger("case-dms.folders")
 
 router = APIRouter(prefix="/folders", tags=["Folders"])
 

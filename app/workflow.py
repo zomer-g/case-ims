@@ -8,7 +8,7 @@ from app.models import PromptRule, DetectedField
 from app.config import settings
 from app.field_utils import classify_value as _classify_value
 
-logger = logging.getLogger("case-ims.workflow")
+logger = logging.getLogger("case-dms.workflow")
 
 MAX_TRIGGER_DEPTH = settings.MAX_TRIGGER_DEPTH
 

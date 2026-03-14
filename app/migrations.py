@@ -8,7 +8,7 @@ import logging
 from sqlalchemy import text as sa_text, inspect
 from app.database import SessionLocal, engine
 
-logger = logging.getLogger("case-ims.migrations")
+logger = logging.getLogger("case-dms.migrations")
 
 
 def _table_exists(inspector, table_name: str) -> bool:

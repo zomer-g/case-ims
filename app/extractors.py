@@ -16,7 +16,7 @@ from app.text_processors import (
     _fix_reversed_hebrew,
 )
 
-logger = logging.getLogger("case-ims.extractors")
+logger = logging.getLogger("case-dms.extractors")
 
 # File type classification
 _FILE_TYPE_MAP = {

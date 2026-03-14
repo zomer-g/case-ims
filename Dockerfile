@@ -1,4 +1,4 @@
-# Case-IMS — Production Dockerfile for Render.com
+# Case-DMS — Production Dockerfile for Render.com
 FROM python:3.11-slim
 
 # Install system dependencies for document/media processing

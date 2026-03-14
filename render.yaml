@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: case-ims
+    name: case-dms
     runtime: docker
     plan: starter
     dockerfilePath: ./Dockerfile
@@ -10,7 +10,7 @@ services:
       - key: DEBUG
         value: "False"
       - key: DATABASE_URL
-        value: "sqlite:////data/ims.db"
+        value: "sqlite:////data/dms.db"
       - key: UPLOAD_DIR
         value: "/data/uploads"
       - key: RUNTIME_MODE
@@ -24,6 +24,6 @@ services:
       - key: ADMIN_EMAILS
         sync: false
     disk:
-      name: case-ims-data
+      name: case-dms-data
       mountPath: /data
       sizeGB: 1

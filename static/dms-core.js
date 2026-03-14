@@ -1,5 +1,5 @@
 /**
- * ims-core.js — Main materials page logic for Case-IMS.
+ * dms-core.js — Main materials page logic for Case-DMS.
  * Handles dual view, folder tree, table, multi-select, bulk actions,
  * tabbed file viewer, and prompts management.
  */
@@ -93,20 +93,20 @@
     // ---- Cases ----
     function setupCaseModal() {
         document.getElementById('new-case-btn')?.addEventListener('click', () => {
-            if (!IMS.token) { window.location.href = '/static/login.html'; return; }
+            if (!DMS.token) { window.location.href = '/static/login.html'; return; }
             new bootstrap.Modal(document.getElementById('newCaseModal')).show();
         });
         document.getElementById('create-case-btn')?.addEventListener('click', async () => {
             const name = document.getElementById('case-name').value.trim();
             if (!name) return;
             try {
-                await IMS.api('/cases/', { method: 'POST', json: { name, description: document.getElementById('case-desc').value } });
+                await DMS.api('/cases/', { method: 'POST', json: { name, description: document.getElementById('case-desc').value } });
                 bootstrap.Modal.getInstance(document.getElementById('newCaseModal')).hide();
                 document.getElementById('case-name').value = '';
                 document.getElementById('case-desc').value = '';
                 loadCases();
-                IMS.toast('התיק נוצר בהצלחה', 'success');
-            } catch (err) { IMS.toast(err.message, 'error'); }
+                DMS.toast('התיק נוצר בהצלחה', 'success');
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
     }
 
@@ -115,9 +115,9 @@
         const container = document.getElementById('folder-tree');
         if (!container) return;
         try {
-            if (!IMS.currentCaseId) { container.innerHTML = ''; return; }
-            const params = new URLSearchParams({ tree: 'true', case_id: IMS.currentCaseId });
-            const data = await IMS.api('/folders/?' + params.toString());
+            if (!DMS.currentCaseId) { container.innerHTML = ''; return; }
+            const params = new URLSearchParams({ tree: 'true', case_id: DMS.currentCaseId });
+            const data = await DMS.api('/folders/?' + params.toString());
 
             container.innerHTML = '';
             // "All files" root item
@@ -145,7 +145,7 @@
             item.style.paddingRight = (0.5 + depth * 1) + 'rem';
             item.dataset.folderId = node.id;
             const hasChildren = node.children && node.children.length;
-            item.innerHTML = `<i class="fas fa-folder me-1 text-warning"></i>${IMS.esc(node.name)} <small class="text-muted">(${node.material_count || 0})</small>`;
+            item.innerHTML = `<i class="fas fa-folder me-1 text-warning"></i>${DMS.esc(node.name)} <small class="text-muted">(${node.material_count || 0})</small>`;
             item.addEventListener('click', () => {
                 currentFolderId = node.id;
                 currentPage = 1;
@@ -184,8 +184,8 @@
         empty.classList.add('d-none');
         tbody.innerHTML = '';
 
-        if (!IMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
-        const params = new URLSearchParams({ page: currentPage, size: pageSize, case_id: IMS.currentCaseId });
+        if (!DMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
+        const params = new URLSearchParams({ page: currentPage, size: pageSize, case_id: DMS.currentCaseId });
         if (currentFolderId) params.set('folder_id', currentFolderId);
         if (currentSortBy) params.set('sort_by', currentSortBy);
         if (currentSortDir) params.set('sort_dir', currentSortDir);
@@ -200,7 +200,7 @@
         if (searchQ) params.set('search', searchQ);
 
         try {
-            const data = await IMS.api('/materials/?' + params.toString());
+            const data = await DMS.api('/materials/?' + params.toString());
             spinner.classList.add('d-none');
             document.getElementById('total-count').textContent = `${data.total} חומרים`;
             currentMaterialsList = data.materials;
@@ -219,7 +219,7 @@
         } catch (err) {
             spinner.classList.add('d-none');
             if (err.message !== 'Session expired') {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">${IMS.esc(err.message)}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">${DMS.esc(err.message)}</td></tr>`;
             }
         }
     }
@@ -229,8 +229,8 @@
         tr.className = `file-row ${selectedIds.has(mat.id) ? 'selected' : ''}`;
         tr.dataset.materialId = mat.id;
         tr.dataset.index = idx;
-        const E = IMS.esc;
-        const icon = IMS.typeIconDetailed ? IMS.typeIconDetailed(mat.file_type, mat.filename) : IMS.typeIcon(mat.file_type);
+        const E = DMS.esc;
+        const icon = DMS.typeIconDetailed ? DMS.typeIconDetailed(mat.file_type, mat.filename) : DMS.typeIcon(mat.file_type);
 
         const folderDisplay = mat.folder_name || (mat.original_path ? mat.original_path.split('/').slice(0, -1).join('/') : '');
 
@@ -240,9 +240,9 @@
             <td class="text-truncate" style="max-width:300px" title="${E(mat.filename)}">${E(mat.filename)}</td>
             <td><small>${E(mat.file_type)}</small></td>
             <td class="folder-cell text-truncate" style="max-width:150px;${viewMode === 'tree' ? 'display:none' : ''}" title="${E(folderDisplay)}">${E(folderDisplay) || '-'}</td>
-            <td><small>${IMS.formatSize(mat.file_size)}</small></td>
-            <td><small>${IMS.formatDateShort(mat.upload_date)}</small></td>
-            <td>${IMS.statusBadge(mat.extraction_status)}</td>
+            <td><small>${DMS.formatSize(mat.file_size)}</small></td>
+            <td><small>${DMS.formatDateShort(mat.upload_date)}</small></td>
+            <td>${DMS.statusBadge(mat.extraction_status)}</td>
         `;
 
         // Click row to view detail
@@ -325,12 +325,12 @@
             const tag = document.getElementById('bulk-tag-input').value.trim();
             if (!tag) return;
             try {
-                const result = await IMS.api('/materials/bulk/tag', { method: 'POST', json: { material_ids: [...selectedIds], tag } });
-                IMS.toast(`תגית "${tag}" נוספה ל-${result.updated} חומרים`, 'success');
+                const result = await DMS.api('/materials/bulk/tag', { method: 'POST', json: { material_ids: [...selectedIds], tag } });
+                DMS.toast(`תגית "${tag}" נוספה ל-${result.updated} חומרים`, 'success');
                 bootstrap.Modal.getInstance(document.getElementById('bulkTagModal')).hide();
                 clearSelection();
                 loadMaterials();
-            } catch (err) { IMS.toast(err.message, 'error'); }
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
 
         // Prompt
@@ -375,7 +375,7 @@
         // Upload toggle
         document.getElementById('toggle-upload-btn')?.addEventListener('click', () => {
             const wrapper = document.getElementById('upload-zone-wrapper');
-            if (!IMS.token) { window.location.href = '/static/login.html'; return; }
+            if (!DMS.token) { window.location.href = '/static/login.html'; return; }
             wrapper.classList.toggle('d-none');
         });
     }
@@ -394,7 +394,7 @@
         const sel = document.getElementById('bulk-prompt-select');
         sel.innerHTML = '<option value="">-- פרומפט מותאם אישית --</option>';
         try {
-            const data = await IMS.api('/prompts/');
+            const data = await DMS.api('/prompts/');
             data.prompts.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
@@ -412,7 +412,7 @@
         const resultContainer = document.getElementById('prompt-result-container');
         const resultText = document.getElementById('prompt-result-text');
 
-        if (!promptText && !promptId) { IMS.toast('הכנס טקסט פרומפט', 'error'); return; }
+        if (!promptText && !promptId) { DMS.toast('הכנס טקסט פרומפט', 'error'); return; }
 
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>מריץ...';
@@ -420,14 +420,14 @@
         try {
             let result;
             if (promptId) {
-                result = await IMS.api(`/prompts/${promptId}/run`, { method: 'POST', json: { material_ids: [...selectedIds] } });
+                result = await DMS.api(`/prompts/${promptId}/run`, { method: 'POST', json: { material_ids: [...selectedIds] } });
             } else {
-                result = await IMS.api('/prompts/run-custom', { method: 'POST', json: { material_ids: [...selectedIds], prompt_text: promptText } });
+                result = await DMS.api('/prompts/run-custom', { method: 'POST', json: { material_ids: [...selectedIds], prompt_text: promptText } });
             }
             resultContainer.classList.remove('d-none');
             resultText.textContent = JSON.stringify(result.result, null, 2);
-            IMS.toast('הפרומפט הורץ בהצלחה', 'success');
-        } catch (err) { IMS.toast(err.message, 'error'); }
+            DMS.toast('הפרומפט הורץ בהצלחה', 'success');
+        } catch (err) { DMS.toast(err.message, 'error'); }
 
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-play me-1"></i>הרץ';
@@ -440,22 +440,22 @@
 
         try {
             const params = new URLSearchParams({ q, size: 20 });
-            if (IMS.currentCaseId) params.set('case_id', IMS.currentCaseId);
-            const data = await IMS.api('/entities/?' + params.toString());
+            if (DMS.currentCaseId) params.set('case_id', DMS.currentCaseId);
+            const data = await DMS.api('/entities/?' + params.toString());
             container.innerHTML = '';
             if (!data.entities.length) { container.innerHTML = '<small class="text-muted">לא נמצאו ישויות</small>'; return; }
             data.entities.forEach(e => {
                 const div = document.createElement('div');
                 div.className = 'd-flex justify-content-between align-items-center p-1 border-bottom';
                 div.innerHTML = `
-                    <span><i class="${IMS.entityTypeIcon(e.entity_type)} me-1" style="color:${IMS.entityTypeColor(e.entity_type)}"></i>${IMS.esc(e.name)} <small class="text-muted">${IMS.entityTypeLabel(e.entity_type)}</small></span>
+                    <span><i class="${DMS.entityTypeIcon(e.entity_type)} me-1" style="color:${DMS.entityTypeColor(e.entity_type)}"></i>${DMS.esc(e.name)} <small class="text-muted">${DMS.entityTypeLabel(e.entity_type)}</small></span>
                     <button class="btn btn-sm btn-outline-primary link-entity-btn" data-id="${e.id}">קשר</button>
                 `;
                 div.querySelector('.link-entity-btn').addEventListener('click', async () => {
                     try {
-                        const result = await IMS.api('/materials/bulk/link-entities', { method: 'POST', json: { material_ids: [...selectedIds], entity_ids: [e.id] } });
-                        IMS.toast(`${result.linked} קישורים נוצרו`, 'success');
-                    } catch (err) { IMS.toast(err.message, 'error'); }
+                        const result = await DMS.api('/materials/bulk/link-entities', { method: 'POST', json: { material_ids: [...selectedIds], entity_ids: [e.id] } });
+                        DMS.toast(`${result.linked} קישורים נוצרו`, 'success');
+                    } catch (err) { DMS.toast(err.message, 'error'); }
                 });
                 container.appendChild(div);
             });
@@ -465,18 +465,18 @@
     async function createAndLinkEntity() {
         const name = document.getElementById('new-entity-name').value.trim();
         const type = document.getElementById('new-entity-type').value;
-        if (!name) { IMS.toast('הכנס שם ישות', 'error'); return; }
-        const caseId = IMS.currentCaseId || (currentMaterialsList[0]?.case_id);
-        if (!caseId) { IMS.toast('בחר תיק', 'error'); return; }
+        if (!name) { DMS.toast('הכנס שם ישות', 'error'); return; }
+        const caseId = DMS.currentCaseId || (currentMaterialsList[0]?.case_id);
+        if (!caseId) { DMS.toast('בחר תיק', 'error'); return; }
 
         try {
-            const result = await IMS.api('/materials/bulk/link-entities', {
+            const result = await DMS.api('/materials/bulk/link-entities', {
                 method: 'POST',
                 json: { material_ids: [...selectedIds], entity_ids: [], create_entities: [{ name, entity_type: type, case_id: caseId }] }
             });
-            IMS.toast(`ישות "${name}" נוצרה וקושרה ל-${result.linked} חומרים`, 'success');
+            DMS.toast(`ישות "${name}" נוצרה וקושרה ל-${result.linked} חומרים`, 'success');
             document.getElementById('new-entity-name').value = '';
-        } catch (err) { IMS.toast(err.message, 'error'); }
+        } catch (err) { DMS.toast(err.message, 'error'); }
     }
 
     async function searchEvents() {
@@ -486,8 +486,8 @@
 
         try {
             const params = new URLSearchParams({ size: 50 });
-            if (IMS.currentCaseId) params.set('case_id', IMS.currentCaseId);
-            const data = await IMS.api('/timeline/?' + params.toString());
+            if (DMS.currentCaseId) params.set('case_id', DMS.currentCaseId);
+            const data = await DMS.api('/timeline/?' + params.toString());
             const filtered = data.events.filter(ev => ev.title.includes(q));
             container.innerHTML = '';
             if (!filtered.length) { container.innerHTML = '<small class="text-muted">לא נמצאו אירועים</small>'; return; }
@@ -495,14 +495,14 @@
                 const div = document.createElement('div');
                 div.className = 'd-flex justify-content-between align-items-center p-1 border-bottom';
                 div.innerHTML = `
-                    <span><i class="fas fa-calendar-alt me-1 text-danger"></i>${IMS.esc(ev.title)} <small class="text-muted">${IMS.formatDateShort(ev.event_date)}</small></span>
+                    <span><i class="fas fa-calendar-alt me-1 text-danger"></i>${DMS.esc(ev.title)} <small class="text-muted">${DMS.formatDateShort(ev.event_date)}</small></span>
                     <button class="btn btn-sm btn-outline-primary link-event-btn" data-id="${ev.id}">קשר</button>
                 `;
                 div.querySelector('.link-event-btn').addEventListener('click', async () => {
                     try {
-                        const result = await IMS.api('/materials/bulk/link-timeline', { method: 'POST', json: { material_ids: [...selectedIds], event_ids: [ev.id] } });
-                        IMS.toast(`${result.linked} קישורים נוצרו`, 'success');
-                    } catch (err) { IMS.toast(err.message, 'error'); }
+                        const result = await DMS.api('/materials/bulk/link-timeline', { method: 'POST', json: { material_ids: [...selectedIds], event_ids: [ev.id] } });
+                        DMS.toast(`${result.linked} קישורים נוצרו`, 'success');
+                    } catch (err) { DMS.toast(err.message, 'error'); }
                 });
                 container.appendChild(div);
             });
@@ -512,19 +512,19 @@
     async function createAndLinkEvent() {
         const title = document.getElementById('new-event-title').value.trim();
         const eventDate = document.getElementById('new-event-date').value;
-        if (!title || !eventDate) { IMS.toast('כותרת ותאריך חובה', 'error'); return; }
-        const caseId = IMS.currentCaseId || (currentMaterialsList[0]?.case_id);
-        if (!caseId) { IMS.toast('בחר תיק', 'error'); return; }
+        if (!title || !eventDate) { DMS.toast('כותרת ותאריך חובה', 'error'); return; }
+        const caseId = DMS.currentCaseId || (currentMaterialsList[0]?.case_id);
+        if (!caseId) { DMS.toast('בחר תיק', 'error'); return; }
 
         try {
-            const result = await IMS.api('/materials/bulk/link-timeline', {
+            const result = await DMS.api('/materials/bulk/link-timeline', {
                 method: 'POST',
                 json: { material_ids: [...selectedIds], event_ids: [], create_events: [{ title, event_date: eventDate, case_id: caseId }] }
             });
-            IMS.toast(`אירוע "${title}" נוצר וקושר ל-${result.linked} חומרים`, 'success');
+            DMS.toast(`אירוע "${title}" נוצר וקושר ל-${result.linked} חומרים`, 'success');
             document.getElementById('new-event-title').value = '';
             document.getElementById('new-event-date').value = '';
-        } catch (err) { IMS.toast(err.message, 'error'); }
+        } catch (err) { DMS.toast(err.message, 'error'); }
     }
 
     function renderPagination(total, page, size) {
@@ -692,7 +692,7 @@
         }
 
         const treeLines = renderTree(tree, '', false);
-        content.innerHTML = treeLines.map(l => IMS.esc(l)).join('<br>');
+        content.innerHTML = treeLines.map(l => DMS.esc(l)).join('<br>');
         if (countEl) countEl.textContent = fileEntries.length;
         preview.classList.remove('d-none');
 
@@ -705,7 +705,7 @@
         document.getElementById('cancel-upload-btn').onclick = () => {
             preview.classList.add('d-none');
             pendingUploadEntries = null;
-            IMS.toast('ההעלאה בוטלה', 'warning');
+            DMS.toast('ההעלאה בוטלה', 'warning');
         };
     }
 
@@ -730,7 +730,7 @@
     async function uploadFiles(fileEntries) {
         const progress = document.getElementById('upload-progress');
         const summary = document.getElementById('upload-summary');
-        const caseId = IMS.currentCaseId;
+        const caseId = DMS.currentCaseId;
         const total = fileEntries.length;
         let succeeded = 0, failed = 0;
 
@@ -746,7 +746,7 @@
                 const id = 'up-' + Math.random().toString(36).substring(2, 8);
                 const displayName = relativePath ? relativePath + '/' + file.name : file.name;
 
-                progress.innerHTML += `<div id="${id}" class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-spinner fa-spin text-light"></i><span class="text-light small">${IMS.esc(displayName)}</span></div>`;
+                progress.innerHTML += `<div id="${id}" class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-spinner fa-spin text-light"></i><span class="text-light small">${DMS.esc(displayName)}</span></div>`;
 
                 try {
                     const formData = new FormData();
@@ -755,14 +755,14 @@
                     if (relativePath) formData.append('relative_path', relativePath);
                     const autoProcess = document.getElementById('auto-process-cb')?.checked;
                     if (autoProcess) formData.append('auto_process', 'true');
-                    await IMS.api('/materials/upload', { method: 'POST', body: formData });
+                    await DMS.api('/materials/upload', { method: 'POST', body: formData });
                     succeeded++;
                     const el = document.getElementById(id);
-                    if (el) el.innerHTML = `<i class="fas fa-check text-success"></i><span class="text-light small">${IMS.esc(displayName)} — הועלה</span>`;
+                    if (el) el.innerHTML = `<i class="fas fa-check text-success"></i><span class="text-light small">${DMS.esc(displayName)} — הועלה</span>`;
                 } catch (err) {
                     failed++;
                     const el = document.getElementById(id);
-                    if (el) el.innerHTML = `<i class="fas fa-times text-danger"></i><span class="text-light small">${IMS.esc(displayName)} — ${IMS.esc(err.message)}</span>`;
+                    if (el) el.innerHTML = `<i class="fas fa-times text-danger"></i><span class="text-light small">${DMS.esc(displayName)} — ${DMS.esc(err.message)}</span>`;
                 }
                 if (summary) summary.textContent = `מעלה ${succeeded + failed}/${total} קבצים... (${succeeded} הצליחו, ${failed} נכשלו)`;
             }
@@ -788,20 +788,20 @@
             const id = document.getElementById('materialModal').dataset.materialId;
             if (!id) return;
             try {
-                await IMS.api(`/materials/${id}/reprocess`, { method: 'POST' });
-                IMS.toast('החומר נשלח לעיבוד מחדש', 'success');
-            } catch (err) { IMS.toast(err.message, 'error'); }
+                await DMS.api(`/materials/${id}/reprocess`, { method: 'POST' });
+                DMS.toast('החומר נשלח לעיבוד מחדש', 'success');
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
 
         document.getElementById('modal-delete-btn')?.addEventListener('click', async () => {
             const id = document.getElementById('materialModal').dataset.materialId;
             if (!id || !confirm('למחוק את החומר?')) return;
             try {
-                await IMS.api(`/materials/${id}`, { method: 'DELETE' });
+                await DMS.api(`/materials/${id}`, { method: 'DELETE' });
                 bootstrap.Modal.getInstance(document.getElementById('materialModal')).hide();
                 loadMaterials();
-                IMS.toast('החומר נמחק', 'success');
-            } catch (err) { IMS.toast(err.message, 'error'); }
+                DMS.toast('החומר נמחק', 'success');
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
     }
 
@@ -810,12 +810,12 @@
         modal.dataset.materialId = id;
 
         try {
-            const mat = await IMS.api(`/materials/${id}`);
+            const mat = await DMS.api(`/materials/${id}`);
             document.getElementById('materialModalLabel').textContent = mat.filename;
             document.getElementById('modal-download-btn').href = `/materials/${id}/download`;
 
             const body = document.getElementById('material-detail-body');
-            const E = IMS.esc;
+            const E = DMS.esc;
 
             body.innerHTML = `
                 <ul class="nav nav-tabs" role="tablist">
@@ -837,11 +837,11 @@
             new bootstrap.Modal(modal).show();
             loadEntitiesTab(id);
             loadEventsTab(id);
-        } catch (err) { IMS.toast(err.message, 'error'); }
+        } catch (err) { DMS.toast(err.message, 'error'); }
     }
 
     function renderSourceTab(mat) {
-        const E = IMS.esc;
+        const E = DMS.esc;
         if (mat.file_type === 'pdf') {
             return `<iframe src="/materials/${mat.id}/download" style="width:100%;height:500px;border:none;" title="${E(mat.filename)}"></iframe>`;
         } else if (mat.file_type === 'image') {
@@ -853,9 +853,9 @@
         }
         return `
             <div class="text-center py-4">
-                <i class="${IMS.typeIcon(mat.file_type)} fa-3x mb-3 d-block"></i>
+                <i class="${DMS.typeIcon(mat.file_type)} fa-3x mb-3 d-block"></i>
                 <p>${E(mat.filename)}</p>
-                <p class="text-muted">${E(mat.file_type)} — ${IMS.formatSize(mat.file_size)}</p>
+                <p class="text-muted">${E(mat.file_type)} — ${DMS.formatSize(mat.file_size)}</p>
                 <a href="/materials/${mat.id}/download" class="btn btn-primary"><i class="fas fa-download me-1"></i>הורדה</a>
             </div>
         `;
@@ -869,26 +869,26 @@
                 return `<div class="md-preview">${html}</div>`;
             }
         } catch {}
-        return `<div class="content-text-preview">${IMS.esc(mat.content_text)}</div>`;
+        return `<div class="content-text-preview">${DMS.esc(mat.content_text)}</div>`;
     }
 
     function renderMetadataTab(mat) {
-        const E = IMS.esc;
+        const E = DMS.esc;
         let html = `
             <div class="row mb-3">
                 <div class="col-md-6">
                     <table class="table table-sm">
                         <tr><td class="fw-bold">סוג קובץ</td><td>${E(mat.file_type)}</td></tr>
                         <tr><td class="fw-bold">MIME</td><td><code>${E(mat.mime_type)}</code></td></tr>
-                        <tr><td class="fw-bold">גודל</td><td>${IMS.formatSize(mat.file_size)}</td></tr>
-                        <tr><td class="fw-bold">תאריך העלאה</td><td>${IMS.formatDate(mat.upload_date)}</td></tr>
+                        <tr><td class="fw-bold">גודל</td><td>${DMS.formatSize(mat.file_size)}</td></tr>
+                        <tr><td class="fw-bold">תאריך העלאה</td><td>${DMS.formatDate(mat.upload_date)}</td></tr>
                         ${mat.page_count ? `<tr><td class="fw-bold">עמודים</td><td>${mat.page_count}</td></tr>` : ''}
                         ${mat.duration_seconds ? `<tr><td class="fw-bold">אורך</td><td>${Math.floor(mat.duration_seconds / 60)}:${String(mat.duration_seconds % 60).padStart(2, '0')}</td></tr>` : ''}
                     </table>
                 </div>
                 <div class="col-md-6">
                     <table class="table table-sm">
-                        <tr><td class="fw-bold">סטטוס</td><td>${IMS.statusBadge(mat.extraction_status)}</td></tr>
+                        <tr><td class="fw-bold">סטטוס</td><td>${DMS.statusBadge(mat.extraction_status)}</td></tr>
                         <tr><td class="fw-bold">Hash</td><td><code class="small">${E((mat.file_hash || '').substring(0, 20))}...</code></td></tr>
                         <tr><td class="fw-bold">ציבורי</td><td>${mat.is_public ? 'כן' : 'לא'}</td></tr>
                         ${mat.case_name ? `<tr><td class="fw-bold">תיק</td><td>${E(mat.case_name)}</td></tr>` : ''}
@@ -930,7 +930,7 @@
         const container = document.getElementById('entities-tab-content');
         if (!container) return;
         try {
-            const data = await IMS.api(`/materials/${materialId}/entities`);
+            const data = await DMS.api(`/materials/${materialId}/entities`);
             if (!data.entities.length) {
                 container.innerHTML = '<p class="text-muted text-center py-3">אין ישויות מקושרות</p>';
                 return;
@@ -939,11 +939,11 @@
             data.entities.forEach(e => {
                 html += `
                     <div class="d-flex align-items-center gap-2 p-2 border rounded">
-                        <i class="${IMS.entityTypeIcon(e.entity_type)}" style="color:${IMS.entityTypeColor(e.entity_type)}"></i>
+                        <i class="${DMS.entityTypeIcon(e.entity_type)}" style="color:${DMS.entityTypeColor(e.entity_type)}"></i>
                         <div>
-                            <strong>${IMS.esc(e.name)}</strong>
-                            <small class="text-muted d-block">${IMS.entityTypeLabel(e.entity_type)}${e.relevance ? ' — ' + IMS.esc(e.relevance) : ''}</small>
-                            ${e.detail ? `<small class="text-muted">${IMS.esc(e.detail)}</small>` : ''}
+                            <strong>${DMS.esc(e.name)}</strong>
+                            <small class="text-muted d-block">${DMS.entityTypeLabel(e.entity_type)}${e.relevance ? ' — ' + DMS.esc(e.relevance) : ''}</small>
+                            ${e.detail ? `<small class="text-muted">${DMS.esc(e.detail)}</small>` : ''}
                         </div>
                     </div>
                 `;
@@ -951,7 +951,7 @@
             html += '</div>';
             container.innerHTML = html;
         } catch (err) {
-            container.innerHTML = `<p class="text-danger">${IMS.esc(err.message)}</p>`;
+            container.innerHTML = `<p class="text-danger">${DMS.esc(err.message)}</p>`;
         }
     }
 
@@ -959,7 +959,7 @@
         const container = document.getElementById('events-tab-content');
         if (!container) return;
         try {
-            const data = await IMS.api(`/materials/${materialId}/timeline-events`);
+            const data = await DMS.api(`/materials/${materialId}/timeline-events`);
             if (!data.events.length) {
                 container.innerHTML = '<p class="text-muted text-center py-3">אין אירועים מקושרים</p>';
                 return;
@@ -970,10 +970,10 @@
                     <div class="d-flex align-items-center gap-2 p-2 border rounded">
                         <i class="fas fa-calendar-alt text-danger"></i>
                         <div>
-                            <strong>${IMS.esc(ev.title)}</strong>
-                            <small class="text-muted d-block">${IMS.formatDateShort(ev.event_date)}${ev.event_end_date ? ' — ' + IMS.formatDateShort(ev.event_end_date) : ''}</small>
-                            ${ev.description ? `<small class="text-muted">${IMS.esc(ev.description)}</small>` : ''}
-                            ${ev.location ? `<small class="text-muted d-block"><i class="fas fa-map-marker-alt me-1"></i>${IMS.esc(ev.location)}</small>` : ''}
+                            <strong>${DMS.esc(ev.title)}</strong>
+                            <small class="text-muted d-block">${DMS.formatDateShort(ev.event_date)}${ev.event_end_date ? ' — ' + DMS.formatDateShort(ev.event_end_date) : ''}</small>
+                            ${ev.description ? `<small class="text-muted">${DMS.esc(ev.description)}</small>` : ''}
+                            ${ev.location ? `<small class="text-muted d-block"><i class="fas fa-map-marker-alt me-1"></i>${DMS.esc(ev.location)}</small>` : ''}
                         </div>
                     </div>
                 `;
@@ -981,16 +981,16 @@
             html += '</div>';
             container.innerHTML = html;
         } catch (err) {
-            container.innerHTML = `<p class="text-danger">${IMS.esc(err.message)}</p>`;
+            container.innerHTML = `<p class="text-danger">${DMS.esc(err.message)}</p>`;
         }
     }
 
     // ---- Queue Status Polling ----
     function pollQueueStatus() {
-        if (!IMS.token) return;
+        if (!DMS.token) return;
         async function check() {
             try {
-                const data = await IMS.api('/queue/status');
+                const data = await DMS.api('/queue/status');
                 const bar = document.getElementById('queue-status-bar');
                 if (data.running_count > 0 || data.pending_count > 0) {
                     bar.classList.remove('d-none');

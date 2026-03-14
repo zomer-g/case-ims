@@ -7,7 +7,7 @@ from app.database import get_db
 from app.auth import get_current_admin_user
 from app.models import DetectedField, User
 
-logger = logging.getLogger("case-ims.admin-fields")
+logger = logging.getLogger("case-dms.admin-fields")
 
 router = APIRouter(prefix="/admin/fields", tags=["Admin – Fields"])
 

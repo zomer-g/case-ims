@@ -5,7 +5,7 @@ from app.database import get_db
 from app.auth import get_current_user, get_current_admin_user
 from app.models import User
 
-logger = logging.getLogger("case-ims.users")
+logger = logging.getLogger("case-dms.users")
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

@@ -1,9 +1,9 @@
 /**
- * timeline.js — Timeline visualization and management for Case-IMS.
+ * timeline.js — Timeline visualization and management for Case-DMS.
  */
 (function () {
     document.addEventListener('DOMContentLoaded', () => {
-        if (!IMS.token) { window.location.href = '/static/login.html'; return; }
+        if (!DMS.token) { window.location.href = '/static/login.html'; return; }
         setupFilters();
         setupEventModal();
         setupGenerateModal();
@@ -23,8 +23,8 @@
         const empty = document.getElementById('empty-state');
         spinner.classList.remove('d-none'); empty.classList.add('d-none'); container.innerHTML = '';
 
-        if (!IMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
-        const params = new URLSearchParams({ size: 500, case_id: IMS.currentCaseId });
+        if (!DMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
+        const params = new URLSearchParams({ size: 500, case_id: DMS.currentCaseId });
         const dateFrom = document.getElementById('date-from')?.value;
         const dateTo = document.getElementById('date-to')?.value;
         const source = document.getElementById('source-filter')?.value;
@@ -33,21 +33,21 @@
         if (source) params.set('source', source);
 
         try {
-            const data = await IMS.api('/timeline/?' + params.toString());
+            const data = await DMS.api('/timeline/?' + params.toString());
             spinner.classList.add('d-none');
             document.getElementById('total-count').textContent = `${data.total} אירועים`;
             if (!data.events.length) { empty.classList.remove('d-none'); return; }
             data.events.forEach(ev => container.appendChild(createTimelineItem(ev)));
         } catch (err) {
             spinner.classList.add('d-none');
-            container.innerHTML = `<p class="text-center text-danger">${IMS.esc(err.message)}</p>`;
+            container.innerHTML = `<p class="text-center text-danger">${DMS.esc(err.message)}</p>`;
         }
     }
 
     function createTimelineItem(ev) {
         const item = document.createElement('div');
         item.className = 'timeline-item';
-        const E = IMS.esc;
+        const E = DMS.esc;
         const dotClass = ev.source === 'ai' ? 'ai' : ev.source === 'entity' ? 'entity' : '';
 
         const sourceLabels = { manual: 'ידני', ai: 'AI', entity: 'ישות' };
@@ -60,7 +60,7 @@
 
         let metaHtml = '';
         if (ev.material_filename) metaHtml += `<small class="text-muted d-block"><i class="fas fa-file me-1"></i>${E(ev.material_filename)}</small>`;
-        if (ev.entity_name) metaHtml += `<small class="text-muted d-block"><i class="${IMS.entityTypeIcon(ev.entity_type)} me-1"></i>${E(ev.entity_name)}</small>`;
+        if (ev.entity_name) metaHtml += `<small class="text-muted d-block"><i class="${DMS.entityTypeIcon(ev.entity_type)} me-1"></i>${E(ev.entity_name)}</small>`;
         if (ev.location) metaHtml += `<small class="text-muted d-block"><i class="fas fa-map-marker-alt me-1"></i>${E(ev.location)}</small>`;
 
         let confidenceHtml = '';
@@ -73,7 +73,7 @@
             <div class="timeline-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="timeline-date">${IMS.formatDateShort(ev.event_date)}${ev.event_end_date ? ' — ' + IMS.formatDateShort(ev.event_end_date) : ''}</div>
+                        <div class="timeline-date">${DMS.formatDateShort(ev.event_date)}${ev.event_end_date ? ' — ' + DMS.formatDateShort(ev.event_end_date) : ''}</div>
                         <h6 class="mt-1 mb-1">${E(ev.title)}</h6>
                     </div>
                     <div class="d-flex gap-1 align-items-center">
@@ -100,10 +100,10 @@
             e.preventDefault();
             if (!confirm('למחוק אירוע?')) return;
             try {
-                await IMS.api(`/timeline/${ev.id}`, { method: 'DELETE' });
-                IMS.toast('אירוע נמחק', 'success');
+                await DMS.api(`/timeline/${ev.id}`, { method: 'DELETE' });
+                DMS.toast('אירוע נמחק', 'success');
                 loadTimeline();
-            } catch (err) { IMS.toast(err.message, 'error'); }
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
 
         return item;
@@ -142,7 +142,7 @@
         const title = document.getElementById('event-title').value.trim();
         const eventDate = document.getElementById('event-date').value;
 
-        if (!title || !eventDate) { IMS.toast('כותרת ותאריך חובה', 'error'); return; }
+        if (!title || !eventDate) { DMS.toast('כותרת ותאריך חובה', 'error'); return; }
 
         const tags = document.getElementById('event-tags').value.split(',').map(t => t.trim()).filter(Boolean);
         const body = {
@@ -156,17 +156,17 @@
 
         try {
             if (id) {
-                await IMS.api(`/timeline/${id}`, { method: 'PUT', json: body });
-                IMS.toast('אירוע עודכן', 'success');
+                await DMS.api(`/timeline/${id}`, { method: 'PUT', json: body });
+                DMS.toast('אירוע עודכן', 'success');
             } else {
-                body.case_id = IMS.currentCaseId;
-                if (!body.case_id) { IMS.toast('יש לבחור תיק', 'error'); return; }
-                await IMS.api('/timeline/', { method: 'POST', json: body });
-                IMS.toast('אירוע נוצר', 'success');
+                body.case_id = DMS.currentCaseId;
+                if (!body.case_id) { DMS.toast('יש לבחור תיק', 'error'); return; }
+                await DMS.api('/timeline/', { method: 'POST', json: body });
+                DMS.toast('אירוע נוצר', 'success');
             }
             bootstrap.Modal.getInstance(document.getElementById('eventModal'))?.hide();
             loadTimeline();
-        } catch (err) { IMS.toast(err.message, 'error'); }
+        } catch (err) { DMS.toast(err.message, 'error'); }
     }
 
     // ---- AI Generate ----
@@ -176,23 +176,23 @@
         });
 
         document.getElementById('run-generate-btn')?.addEventListener('click', async () => {
-            const caseId = IMS.currentCaseId;
+            const caseId = DMS.currentCaseId;
             const provider = document.getElementById('gen-provider').value;
-            if (!caseId) { IMS.toast('יש לבחור תיק', 'error'); return; }
+            if (!caseId) { DMS.toast('יש לבחור תיק', 'error'); return; }
 
             const btn = document.getElementById('run-generate-btn');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>מפיק...';
 
             try {
-                const result = await IMS.api('/timeline/generate', {
+                const result = await DMS.api('/timeline/generate', {
                     method: 'POST',
                     json: { case_id: caseId, provider },
                 });
                 bootstrap.Modal.getInstance(document.getElementById('generateModal'))?.hide();
-                IMS.toast(`${result.created} אירועים נוצרו מ-${result.source_materials} חומרים`, 'success');
+                DMS.toast(`${result.created} אירועים נוצרו מ-${result.source_materials} חומרים`, 'success');
                 loadTimeline();
-            } catch (err) { IMS.toast(err.message, 'error'); }
+            } catch (err) { DMS.toast(err.message, 'error'); }
 
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-robot me-1"></i>הפק';

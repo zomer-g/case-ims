@@ -1,11 +1,11 @@
 /**
- * groups.js — Material group management for Case-IMS.
+ * groups.js — Material group management for Case-DMS.
  */
 (function () {
     let currentGroupId = null;
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (!IMS.token) { window.location.href = '/static/login.html'; return; }
+        if (!DMS.token) { window.location.href = '/static/login.html'; return; }
         setupCreateModal();
         setupDetailModal();
         setupAddMembersModal();
@@ -18,17 +18,17 @@
         const empty = document.getElementById('empty-state');
         spinner.classList.remove('d-none'); empty.classList.add('d-none'); list.innerHTML = '';
 
-        if (!IMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
-        const params = `?case_id=${IMS.currentCaseId}`;
+        if (!DMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
+        const params = `?case_id=${DMS.currentCaseId}`;
 
         try {
-            const data = await IMS.api('/groups/' + params);
+            const data = await DMS.api('/groups/' + params);
             spinner.classList.add('d-none');
             if (!data.groups.length) { empty.classList.remove('d-none'); return; }
             data.groups.forEach(g => {
                 const col = document.createElement('div');
                 col.className = 'col-md-6 col-lg-4';
-                const E = IMS.esc;
+                const E = DMS.esc;
                 col.innerHTML = `
                     <div class="card group-card h-100" data-id="${g.id}">
                         <div class="card-body">
@@ -40,7 +40,7 @@
                             </div>
                         </div>
                         <div class="card-footer bg-transparent pt-0">
-                            <small class="text-muted">${IMS.formatDate(g.created_at)}</small>
+                            <small class="text-muted">${DMS.formatDate(g.created_at)}</small>
                         </div>
                     </div>
                 `;
@@ -49,7 +49,7 @@
             });
         } catch (err) {
             spinner.classList.add('d-none');
-            list.innerHTML = `<div class="col-12 text-center text-danger">${IMS.esc(err.message)}</div>`;
+            list.innerHTML = `<div class="col-12 text-center text-danger">${DMS.esc(err.message)}</div>`;
         }
     }
 
@@ -62,22 +62,22 @@
 
         document.getElementById('create-group-btn')?.addEventListener('click', async () => {
             const name = document.getElementById('group-name').value.trim();
-            if (!name || !IMS.currentCaseId) { IMS.toast('שם ותיק חובה', 'error'); return; }
+            if (!name || !DMS.currentCaseId) { DMS.toast('שם ותיק חובה', 'error'); return; }
             try {
-                await IMS.api('/groups/', { method: 'POST', json: { case_id: IMS.currentCaseId, name, description: document.getElementById('group-desc').value } });
+                await DMS.api('/groups/', { method: 'POST', json: { case_id: DMS.currentCaseId, name, description: document.getElementById('group-desc').value } });
                 bootstrap.Modal.getInstance(document.getElementById('createGroupModal'))?.hide();
-                IMS.toast('קבוצה נוצרה', 'success');
+                DMS.toast('קבוצה נוצרה', 'success');
                 loadGroups();
-            } catch (err) { IMS.toast(err.message, 'error'); }
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
     }
 
     async function showGroupDetail(groupId) {
         currentGroupId = groupId;
         try {
-            const g = await IMS.api(`/groups/${groupId}`);
+            const g = await DMS.api(`/groups/${groupId}`);
             document.getElementById('groupDetailLabel').textContent = g.name;
-            const E = IMS.esc;
+            const E = DMS.esc;
 
             let html = `
                 <p>${E(g.description || '')}</p>
@@ -92,9 +92,9 @@
                 g.members.forEach(m => {
                     html += `<div class="member-item d-flex justify-content-between align-items-center">
                         <div>
-                            <i class="${IMS.typeIcon(m.file_type)} me-2"></i>
+                            <i class="${DMS.typeIcon(m.file_type)} me-2"></i>
                             <strong>${E(m.filename)}</strong>
-                            <small class="text-muted ms-2">${IMS.formatSize(m.file_size)}</small>
+                            <small class="text-muted ms-2">${DMS.formatSize(m.file_size)}</small>
                             ${m.content_summary ? `<small class="text-muted d-block">${E(m.content_summary.substring(0, 80))}...</small>` : ''}
                         </div>
                         <button class="btn btn-sm btn-outline-danger remove-member" data-mid="${m.material_id}"><i class="fas fa-times"></i></button>
@@ -118,15 +118,15 @@
                 btn.addEventListener('click', async () => {
                     const mid = btn.dataset.mid;
                     try {
-                        await IMS.api(`/groups/${groupId}/members/${mid}`, { method: 'DELETE' });
-                        IMS.toast('חומר הוסר', 'success');
+                        await DMS.api(`/groups/${groupId}/members/${mid}`, { method: 'DELETE' });
+                        DMS.toast('חומר הוסר', 'success');
                         showGroupDetail(groupId);
-                    } catch (err) { IMS.toast(err.message, 'error'); }
+                    } catch (err) { DMS.toast(err.message, 'error'); }
                 });
             });
 
             new bootstrap.Modal(document.getElementById('groupDetailModal')).show();
-        } catch (err) { IMS.toast(err.message, 'error'); }
+        } catch (err) { DMS.toast(err.message, 'error'); }
     }
 
     function setupDetailModal() {
@@ -136,10 +136,10 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>מנתח...';
             try {
-                const result = await IMS.api(`/groups/${currentGroupId}/analyze`, { method: 'POST' });
-                IMS.toast(`ניתוח הושלם (${result.member_count} חומרים)`, 'success');
+                const result = await DMS.api(`/groups/${currentGroupId}/analyze`, { method: 'POST' });
+                DMS.toast(`ניתוח הושלם (${result.member_count} חומרים)`, 'success');
                 showGroupDetail(currentGroupId);
-            } catch (err) { IMS.toast(err.message, 'error'); }
+            } catch (err) { DMS.toast(err.message, 'error'); }
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-robot me-1"></i>ניתוח AI';
         });
@@ -147,11 +147,11 @@
         document.getElementById('delete-group-btn')?.addEventListener('click', async () => {
             if (!currentGroupId || !confirm('למחוק קבוצה זו?')) return;
             try {
-                await IMS.api(`/groups/${currentGroupId}`, { method: 'DELETE' });
+                await DMS.api(`/groups/${currentGroupId}`, { method: 'DELETE' });
                 bootstrap.Modal.getInstance(document.getElementById('groupDetailModal'))?.hide();
-                IMS.toast('קבוצה נמחקה', 'success');
+                DMS.toast('קבוצה נמחקה', 'success');
                 loadGroups();
-            } catch (err) { IMS.toast(err.message, 'error'); }
+            } catch (err) { DMS.toast(err.message, 'error'); }
         });
     }
 
@@ -176,36 +176,36 @@
         const container = document.getElementById('available-materials');
         const q = document.getElementById('member-search').value.trim();
         const params = new URLSearchParams({ size: 100 });
-        if (IMS.currentCaseId) params.set('case_id', IMS.currentCaseId);
+        if (DMS.currentCaseId) params.set('case_id', DMS.currentCaseId);
         if (q) params.set('q', q);
 
         try {
-            const data = await IMS.api('/materials/?' + params.toString());
-            const E = IMS.esc;
+            const data = await DMS.api('/materials/?' + params.toString());
+            const E = DMS.esc;
             container.innerHTML = data.materials.map(m => `
                 <div class="form-check mb-2">
                     <input class="form-check-input material-check" type="checkbox" value="${m.id}" id="mat-${m.id}">
                     <label class="form-check-label" for="mat-${m.id}">
-                        <i class="${IMS.typeIcon(m.file_type)} me-1"></i>
-                        ${E(m.filename)} <small class="text-muted">(${IMS.formatSize(m.file_size)})</small>
+                        <i class="${DMS.typeIcon(m.file_type)} me-1"></i>
+                        ${E(m.filename)} <small class="text-muted">(${DMS.formatSize(m.file_size)})</small>
                     </label>
                 </div>
             `).join('') || '<p class="text-muted">לא נמצאו חומרים</p>';
         } catch (err) {
-            container.innerHTML = `<p class="text-danger">${IMS.esc(err.message)}</p>`;
+            container.innerHTML = `<p class="text-danger">${DMS.esc(err.message)}</p>`;
         }
     }
 
     async function confirmAddMembers() {
         const groupId = document.getElementById('add-members-group-id').value;
         const checked = Array.from(document.querySelectorAll('.material-check:checked')).map(c => parseInt(c.value));
-        if (!checked.length) { IMS.toast('בחר חומרים', 'warning'); return; }
+        if (!checked.length) { DMS.toast('בחר חומרים', 'warning'); return; }
 
         try {
-            const result = await IMS.api(`/groups/${groupId}/members`, { method: 'POST', json: { material_ids: checked } });
+            const result = await DMS.api(`/groups/${groupId}/members`, { method: 'POST', json: { material_ids: checked } });
             bootstrap.Modal.getInstance(document.getElementById('addMembersModal'))?.hide();
-            IMS.toast(`${result.added} חומרים נוספו`, 'success');
+            DMS.toast(`${result.added} חומרים נוספו`, 'success');
             showGroupDetail(parseInt(groupId));
-        } catch (err) { IMS.toast(err.message, 'error'); }
+        } catch (err) { DMS.toast(err.message, 'error'); }
     }
 })();
