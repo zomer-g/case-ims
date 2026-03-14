@@ -626,7 +626,14 @@
                     }
                 }
                 await Promise.all(promises);
-                if (fileEntries.length) uploadFiles(fileEntries);
+                if (fileEntries.length) {
+                    const hasFolders = fileEntries.some(e => e.relativePath);
+                    if (hasFolders) {
+                        showUploadTreePreview(fileEntries);
+                    } else {
+                        uploadFiles(fileEntries);
+                    }
+                }
             }
         });
 
@@ -646,11 +653,70 @@
                         const folderPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
                         return { file: f, relativePath: folderPath };
                     });
-                    uploadFiles(entries);
+                    showUploadTreePreview(entries);
                 }
                 folderInput.value = '';
             });
         }
+    }
+
+    // Pending upload entries (for tree preview -> confirm flow)
+    let pendingUploadEntries = null;
+
+    function showUploadTreePreview(fileEntries) {
+        pendingUploadEntries = fileEntries;
+        const preview = document.getElementById('upload-tree-preview');
+        const content = document.getElementById('upload-tree-content');
+        const countEl = document.getElementById('upload-file-count');
+        if (!preview || !content) { uploadFiles(fileEntries); return; }
+
+        // Build tree structure
+        const tree = {};
+        for (const entry of fileEntries) {
+            const fullPath = entry.relativePath ? entry.relativePath + '/' + entry.file.name : entry.file.name;
+            const parts = fullPath.split('/');
+            let node = tree;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!node[parts[i]]) node[parts[i]] = {};
+                node = node[parts[i]];
+            }
+            node[parts[parts.length - 1]] = null; // leaf = file
+        }
+
+        // Render tree as text
+        function renderTree(node, prefix, isLast) {
+            const lines = [];
+            const entries = Object.entries(node);
+            entries.forEach(([name, child], idx) => {
+                const last = idx === entries.length - 1;
+                const connector = last ? '└── ' : '├── ';
+                const isFolder = child !== null && typeof child === 'object';
+                const icon = isFolder ? '📁 ' : '📄 ';
+                lines.push(prefix + connector + icon + name);
+                if (isFolder) {
+                    const nextPrefix = prefix + (last ? '    ' : '│   ');
+                    lines.push(...renderTree(child, nextPrefix, last));
+                }
+            });
+            return lines;
+        }
+
+        const treeLines = renderTree(tree, '', false);
+        content.innerHTML = treeLines.map(l => IMS.esc(l)).join('<br>');
+        if (countEl) countEl.textContent = fileEntries.length;
+        preview.classList.remove('d-none');
+
+        // Wire confirm/cancel buttons
+        document.getElementById('confirm-upload-btn').onclick = () => {
+            preview.classList.add('d-none');
+            if (pendingUploadEntries) uploadFiles(pendingUploadEntries);
+            pendingUploadEntries = null;
+        };
+        document.getElementById('cancel-upload-btn').onclick = () => {
+            preview.classList.add('d-none');
+            pendingUploadEntries = null;
+            IMS.toast('ההעלאה בוטלה', 'warning');
+        };
     }
 
     function traverseEntry(entry, basePath, results) {

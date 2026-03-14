@@ -207,6 +207,18 @@
             <div id="upload-progress" class="mt-2"></div>
             <div id="upload-summary" class="mt-1 d-none text-light small"></div>
 
+            <!-- Folder Tree Preview (shown before upload) -->
+            <div id="upload-tree-preview" class="d-none mt-2 p-2" style="background:rgba(255,255,255,0.1); border-radius:0.5rem; max-height:300px; overflow-y:auto;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-light small fw-bold"><i class="fas fa-sitemap me-1"></i>מבנה תיקיות שיווצר:</span>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-success" id="confirm-upload-btn"><i class="fas fa-upload me-1"></i>העלה <span id="upload-file-count"></span> קבצים</button>
+                        <button class="btn btn-sm btn-outline-light" id="cancel-upload-btn"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div id="upload-tree-content" class="text-light small" style="direction:ltr; text-align:left; font-family:monospace;"></div>
+            </div>
+
             <!-- Filters -->
             <div class="d-flex gap-2 mt-2 flex-wrap align-items-center filter-panel">
                 <input type="text" class="form-control form-control-sm" id="search-input" placeholder="חיפוש בשם ותוכן..." style="max-width:220px; background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3);">
