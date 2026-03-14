@@ -655,6 +655,87 @@ def _auto_create_timeline_event(db, mat, ai_result: dict):
     logger.info("Auto-created timeline event for material %d: date=%s", mat.id, parsed_date.isoformat())
 
 
+def _auto_create_entities_from_mappings(db, mat, ai_result: dict):
+    """Auto-create entities from AI result based on prompt rule entity_mappings."""
+    if not mat.case_id:
+        return
+    try:
+        # Find the base prompt rule that was used
+        base_rule = (
+            db.query(models.PromptRule)
+            .filter(models.PromptRule.trigger_tag.is_(None), models.PromptRule.is_active.is_(True))
+            .first()
+        )
+        if not base_rule or not base_rule.json_schema:
+            return
+
+        schema = json.loads(base_rule.json_schema)
+        mappings = schema.get("entity_mappings", [])
+        if not mappings:
+            return
+
+        created_count = 0
+        for mapping in mappings:
+            field_name = mapping.get("field", "")
+            entity_type = mapping.get("entity_type", "topic")
+            is_array = mapping.get("is_array", True)
+
+            value = ai_result.get(field_name)
+            if not value:
+                continue
+
+            # Normalize to list
+            names = []
+            if is_array and isinstance(value, list):
+                names = [str(v).strip() for v in value if v and str(v).strip()]
+            elif isinstance(value, str) and value.strip():
+                names = [value.strip()]
+            elif isinstance(value, list):
+                names = [str(v).strip() for v in value if v and str(v).strip()]
+
+            for name in names:
+                if not name or len(name) < 2 or len(name) > 300:
+                    continue
+
+                # Check if entity already exists in this case
+                existing = db.query(models.Entity).filter(
+                    models.Entity.case_id == mat.case_id,
+                    models.Entity.entity_type == entity_type,
+                    models.Entity.name == name,
+                ).first()
+
+                if not existing:
+                    existing = models.Entity(
+                        entity_type=entity_type,
+                        case_id=mat.case_id,
+                        name=name,
+                    )
+                    db.add(existing)
+                    db.flush()
+
+                # Link to material if not already linked
+                link_exists = db.query(models.EntityMaterialLink).filter(
+                    models.EntityMaterialLink.entity_id == existing.id,
+                    models.EntityMaterialLink.material_id == mat.id,
+                ).first()
+
+                if not link_exists:
+                    db.add(models.EntityMaterialLink(
+                        entity_id=existing.id,
+                        material_id=mat.id,
+                        relevance="ai_extracted",
+                        detail=f"Extracted from field: {field_name}",
+                    ))
+                    created_count += 1
+
+        if created_count:
+            db.commit()
+            logger.info("Auto-created %d entity links for material %d", created_count, mat.id)
+    except Exception as e:
+        logger.error("Entity auto-creation failed for material %d: %s", mat.id, e)
+        db.rollback()
+
+
 def background_ai_task(material_id: int, text: str, file_path: str, provider: str):
     """Run AI analysis on a material (called by queue_processor)."""
     db = SessionLocal()
@@ -681,6 +762,9 @@ def background_ai_task(material_id: int, text: str, file_path: str, provider: st
 
         # Auto-create timeline event from extracted date
         _auto_create_timeline_event(db, mat, result)
+
+        # Auto-create entities from mapped fields
+        _auto_create_entities_from_mappings(db, mat, result)
 
         log_activity(db, "analysis_completed", f"AI analysis done: {mat.filename}",
                      material_id=material_id, commit=True)
