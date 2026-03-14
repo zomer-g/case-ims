@@ -40,7 +40,7 @@ def _event_response(e: TimelineEvent, db: Session) -> dict:
 
 @router.get("/")
 def list_timeline_events(
-    case_id: Optional[int] = None,
+    case_id: int = Query(..., description="Case ID is required"),
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     entity_id: Optional[int] = None,

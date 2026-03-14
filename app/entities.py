@@ -46,7 +46,7 @@ def _entity_response(e: Entity, db: Session) -> dict:
 
 @router.get("/")
 def list_entities(
-    case_id: Optional[int] = None,
+    case_id: int = Query(..., description="Case ID is required"),
     entity_type: Optional[str] = None,
     q: Optional[str] = None,
     page: int = 1,

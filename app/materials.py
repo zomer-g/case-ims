@@ -109,7 +109,7 @@ def _resolve_folder_from_path(db: Session, case_id: Optional[int], relative_path
 async def upload_material(
     request: Request,
     file: UploadFile = File(...),
-    case_id: Optional[int] = Form(None),
+    case_id: int = Form(...),
     folder_id: Optional[int] = Form(None),
     relative_path: Optional[str] = Form(None),
     provider: str = Form("deepseek"),
@@ -222,7 +222,7 @@ async def upload_material(
 
 @router.get("/")
 def list_materials(
-    case_id: Optional[int] = None,
+    case_id: int = Query(..., description="Case ID is required"),
     folder_id: Optional[int] = None,
     file_type: Optional[str] = None,
     q: Optional[str] = None,
@@ -605,6 +605,52 @@ def get_material_timeline_events(material_id: int, db: Session = Depends(get_db)
     }
 
 
+def _auto_create_timeline_event(db, mat, ai_result: dict):
+    """Auto-create a TimelineEvent if the AI extracted a valid date."""
+    if not mat.case_id:
+        return
+    date_str = ai_result.get("\u05ea\u05d0\u05e8\u05d9\u05da", "")  # תאריך
+    if not date_str or not str(date_str).strip():
+        return
+    try:
+        from dateutil import parser as dateutil_parser
+        parsed_date = dateutil_parser.parse(str(date_str), fuzzy=True)
+    except Exception:
+        try:
+            from datetime import datetime
+            parsed_date = datetime.fromisoformat(str(date_str))
+        except Exception:
+            logger.info("Could not parse date '%s' for material %d", date_str, mat.id)
+            return
+
+    # Check if we already created a timeline event for this material
+    existing = db.query(models.TimelineEvent).filter(
+        models.TimelineEvent.material_id == mat.id,
+        models.TimelineEvent.source == "ai",
+    ).first()
+    if existing:
+        return
+
+    doc_type = ai_result.get("\u05e1\u05d5\u05d2_\u05de\u05e1\u05de\u05da", "")  # סוג_מסמך
+    summary = ai_result.get("\u05ea\u05e7\u05e6\u05d9\u05e8", "")  # תקציר
+    location = ai_result.get("\u05de\u05d9\u05e7\u05d5\u05dd", "")  # מיקום
+    title = f"{doc_type}: {mat.filename}" if doc_type else mat.filename
+
+    event = models.TimelineEvent(
+        case_id=mat.case_id,
+        material_id=mat.id,
+        title=title[:200],
+        description=summary[:500] if summary else None,
+        event_date=parsed_date,
+        location=location[:200] if location else None,
+        source="ai",
+        confidence=80,
+    )
+    db.add(event)
+    db.commit()
+    logger.info("Auto-created timeline event for material %d: date=%s", mat.id, parsed_date.isoformat())
+
+
 def background_ai_task(material_id: int, text: str, file_path: str, provider: str):
     """Run AI analysis on a material (called by queue_processor)."""
     db = SessionLocal()
@@ -628,6 +674,9 @@ def background_ai_task(material_id: int, text: str, file_path: str, provider: st
 
         mat.extraction_status = "done"
         db.commit()
+
+        # Auto-create timeline event from extracted date
+        _auto_create_timeline_event(db, mat, result)
 
         log_activity(db, "analysis_completed", f"AI analysis done: {mat.filename}",
                      material_id=material_id, commit=True)
