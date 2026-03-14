@@ -3,6 +3,8 @@
  */
 
 (function () {
+    let editingPromptId = null;
+
     document.addEventListener('DOMContentLoaded', () => {
         // Check admin access
         if (!IMS.token || !IMS.user?.is_admin) {
@@ -15,6 +17,7 @@
         loadUsers();
         loadActivity();
         loadSettings();
+        setupPromptEditModal();
     });
 
     // ---- Stats ----
@@ -60,6 +63,12 @@
                 </div>
             `).join('');
 
+            // Edit handlers
+            container.querySelectorAll('.edit-prompt-btn').forEach(btn => {
+                btn.addEventListener('click', () => openEditPrompt(parseInt(btn.dataset.id), prompts));
+            });
+
+            // Delete handlers
             container.querySelectorAll('.delete-prompt-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     if (!confirm('למחוק את החוק?')) return;
@@ -74,15 +83,59 @@
         }
     }
 
-    document.getElementById('add-prompt-btn')?.addEventListener('click', () => {
-        const name = prompt('שם החוק:');
-        if (!name) return;
-        const promptText = prompt('טקסט הפרומפט:');
-        if (!promptText) return;
-        IMS.api('/admin/prompts/', { method: 'POST', json: { name, prompt_text: promptText } })
-            .then(() => { loadPrompts(); IMS.toast('החוק נוצר', 'success'); })
-            .catch(err => IMS.toast(err.message, 'error'));
-    });
+    function openEditPrompt(id, prompts) {
+        const p = prompts.find(x => x.id === id);
+        if (!p) return;
+        editingPromptId = id;
+        document.getElementById('edit-prompt-name').value = p.name;
+        document.getElementById('edit-prompt-text').value = p.prompt_text;
+        document.getElementById('edit-prompt-trigger-tag').value = p.trigger_tag || '';
+        document.getElementById('edit-prompt-trigger-value').value = p.trigger_value || '';
+        document.getElementById('edit-prompt-max-tokens').value = p.max_tokens || 3000;
+        document.getElementById('edit-prompt-active').checked = p.is_active;
+        document.getElementById('editPromptModalLabel').textContent = 'עריכת חוק: ' + p.name;
+        new bootstrap.Modal(document.getElementById('editPromptModal')).show();
+    }
+
+    function setupPromptEditModal() {
+        // "New prompt" button opens the modal in create mode
+        document.getElementById('add-prompt-btn')?.addEventListener('click', () => {
+            editingPromptId = null;
+            document.getElementById('edit-prompt-name').value = '';
+            document.getElementById('edit-prompt-text').value = '';
+            document.getElementById('edit-prompt-trigger-tag').value = '';
+            document.getElementById('edit-prompt-trigger-value').value = '';
+            document.getElementById('edit-prompt-max-tokens').value = '3000';
+            document.getElementById('edit-prompt-active').checked = true;
+            document.getElementById('editPromptModalLabel').textContent = 'חוק חדש';
+            new bootstrap.Modal(document.getElementById('editPromptModal')).show();
+        });
+
+        // Single save handler: creates or updates based on editingPromptId
+        document.getElementById('save-edit-prompt-btn')?.addEventListener('click', async () => {
+            const data = {
+                name: document.getElementById('edit-prompt-name').value.trim(),
+                prompt_text: document.getElementById('edit-prompt-text').value.trim(),
+                trigger_tag: document.getElementById('edit-prompt-trigger-tag').value.trim() || null,
+                trigger_value: document.getElementById('edit-prompt-trigger-value').value.trim() || null,
+                max_tokens: parseInt(document.getElementById('edit-prompt-max-tokens').value) || 3000,
+                is_active: document.getElementById('edit-prompt-active').checked,
+            };
+            if (!data.name || !data.prompt_text) { IMS.toast('שם וטקסט חובה', 'error'); return; }
+
+            try {
+                if (editingPromptId) {
+                    await IMS.api(`/admin/prompts/${editingPromptId}`, { method: 'PUT', json: data });
+                    IMS.toast('החוק עודכן בהצלחה', 'success');
+                } else {
+                    await IMS.api('/admin/prompts/', { method: 'POST', json: data });
+                    IMS.toast('החוק נוצר', 'success');
+                }
+                bootstrap.Modal.getInstance(document.getElementById('editPromptModal'))?.hide();
+                loadPrompts();
+            } catch (err) { IMS.toast(err.message, 'error'); }
+        });
+    }
 
     // ---- Fields ----
     async function loadFields() {

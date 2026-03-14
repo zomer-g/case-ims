@@ -10,7 +10,7 @@ logger = logging.getLogger("case-ims.seeders")
 def run_seeders():
     db = SessionLocal()
     try:
-        _seed_base_prompt(db)
+        # Base prompt is no longer auto-seeded; users create prompts manually via admin UI.
         _seed_site_settings(db)
         logger.info("Seeders: complete")
     except Exception as e:

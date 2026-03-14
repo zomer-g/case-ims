@@ -619,23 +619,33 @@
 
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length) {
-                uploadFiles(Array.from(fileInput.files).map(f => ({ file: f, relativePath: '' })));
+                const files = Array.from(fileInput.files).map(f => {
+                    const copy = new File([f], f.name, { type: f.type, lastModified: f.lastModified });
+                    return { file: copy, relativePath: '' };
+                });
+                fileInput.value = '';
+                uploadFiles(files);
             }
-            fileInput.value = '';
         });
 
         if (folderInput) {
             folderInput.addEventListener('change', () => {
                 if (folderInput.files.length) {
-                    const entries = Array.from(folderInput.files).map(f => {
+                    // Read all file data upfront before clearing input.
+                    // Create new File objects from Blobs to detach from the input element.
+                    const rawFiles = Array.from(folderInput.files);
+                    const entries = rawFiles.map(f => {
                         const relPath = f.webkitRelativePath || '';
                         const parts = relPath.split('/');
                         const folderPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
-                        return { file: f, relativePath: folderPath };
+                        // Create a detached copy of the File so clearing input won't invalidate it
+                        const fileCopy = new File([f], f.name, { type: f.type, lastModified: f.lastModified });
+                        return { file: fileCopy, relativePath: folderPath };
                     });
+                    // Clear input AFTER copying files
+                    folderInput.value = '';
                     showUploadTreePreview(entries);
                 }
-                folderInput.value = '';
             });
         }
     }
@@ -743,6 +753,8 @@
                     formData.append('file', file);
                     if (caseId) formData.append('case_id', caseId);
                     if (relativePath) formData.append('relative_path', relativePath);
+                    const autoProcess = document.getElementById('auto-process-cb')?.checked;
+                    if (autoProcess) formData.append('auto_process', 'true');
                     await IMS.api('/materials/upload', { method: 'POST', body: formData });
                     succeeded++;
                     const el = document.getElementById(id);

@@ -197,9 +197,15 @@
                     <input type="file" id="file-input" class="d-none" multiple accept=".pdf,.doc,.docx,.txt,.html,.png,.jpg,.jpeg,.mp3,.wav,.m4a,.mp4,.avi,.mov,.csv,.xlsx,.pptx,.tiff,.tif,.bmp,.webp,.gif,.ogg,.flac,.aac,.mkv,.webm,.xls,.tsv">
                     <input type="file" id="folder-input" class="d-none" webkitdirectory directory multiple>
                 </div>
-                <div class="d-flex gap-2 mt-2">
+                <div class="d-flex gap-2 mt-2 align-items-center">
                     <button class="btn btn-sm btn-outline-light" id="upload-files-btn"><i class="fas fa-file me-1"></i>בחר קבצים</button>
                     <button class="btn btn-sm btn-outline-light" id="upload-folder-btn"><i class="fas fa-folder me-1"></i>בחר תיקייה</button>
+                    <div class="form-check ms-3">
+                        <input class="form-check-input" type="checkbox" id="auto-process-cb">
+                        <label class="form-check-label text-light small" for="auto-process-cb">
+                            <i class="fas fa-robot me-1"></i>שלח לניתוח AI אוטומטי
+                        </label>
+                    </div>
                 </div>
             </div>
             <div id="upload-progress" class="mt-2"></div>

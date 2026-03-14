@@ -113,6 +113,7 @@ async def upload_material(
     folder_id: Optional[int] = Form(None),
     relative_path: Optional[str] = Form(None),
     provider: str = Form("deepseek"),
+    auto_process: Optional[bool] = Form(False),
     is_public: Optional[bool] = Form(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -202,21 +203,24 @@ async def upload_material(
                  user_id=current_user.id, material_id=material.id,
                  user_agent=_parse_ua(request.headers.get("user-agent", "")))
 
-    # Queue for processing
-    key_error = llm_service.check_provider_key(provider)
-    if not key_error:
-        queue_item = models.ProcessingQueue(
-            material_id=material.id, user_id=current_user.id,
-            provider=provider, status="pending",
-        )
-        db.add(queue_item)
-        db.commit()
+    # Queue for AI processing only if explicitly requested
+    queued = False
+    if auto_process:
+        key_error = llm_service.check_provider_key(provider)
+        if not key_error:
+            queue_item = models.ProcessingQueue(
+                material_id=material.id, user_id=current_user.id,
+                provider=provider, status="pending",
+            )
+            db.add(queue_item)
+            db.commit()
+            queued = True
 
     return {
         "id": material.id, "filename": material.filename,
         "file_type": material.file_type, "file_size": material.file_size,
         "case_id": material.case_id, "upload_date": material.upload_date,
-        "queued": not bool(key_error),
+        "queued": queued,
     }
 
 
