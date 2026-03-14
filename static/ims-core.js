@@ -7,7 +7,6 @@
 (function () {
     let currentPage = 1;
     const pageSize = 50;
-    let currentCaseId = null;
     let currentFolderId = null;
     let currentSortBy = 'upload_date';
     let currentSortDir = 'desc';
@@ -20,9 +19,6 @@
     let currentMaterialsList = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        loadCases();
-        loadMaterials();
-        loadFolderTree();
         setupUpload();
         setupFilters();
         setupCaseModal();
@@ -32,6 +28,13 @@
         setupSelectAll();
         setupBulkActions();
         pollQueueStatus();
+        // Listen for global case changes
+        document.addEventListener('case-changed', () => {
+            currentFolderId = null;
+            currentPage = 1;
+            loadMaterials();
+            loadFolderTree();
+        });
     });
 
     // ---- View Toggle ----
@@ -88,21 +91,6 @@
     }
 
     // ---- Cases ----
-    async function loadCases() {
-        if (!IMS.token) return;
-        try {
-            const cases = await IMS.api('/cases/');
-            const select = document.getElementById('case-select');
-            select.innerHTML = '<option value="">כל התיקים</option>';
-            cases.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = `${c.name} (${c.material_count})`;
-                select.appendChild(opt);
-            });
-        } catch (err) { console.warn('Failed to load cases:', err); }
-    }
-
     function setupCaseModal() {
         document.getElementById('new-case-btn')?.addEventListener('click', () => {
             if (!IMS.token) { window.location.href = '/static/login.html'; return; }
@@ -127,8 +115,8 @@
         const container = document.getElementById('folder-tree');
         if (!container) return;
         try {
-            const params = new URLSearchParams({ tree: 'true' });
-            if (currentCaseId) params.set('case_id', currentCaseId);
+            if (!IMS.currentCaseId) { container.innerHTML = ''; return; }
+            const params = new URLSearchParams({ tree: 'true', case_id: IMS.currentCaseId });
             const data = await IMS.api('/folders/?' + params.toString());
 
             container.innerHTML = '';
@@ -196,8 +184,8 @@
         empty.classList.add('d-none');
         tbody.innerHTML = '';
 
-        const params = new URLSearchParams({ page: currentPage, size: pageSize });
-        if (currentCaseId) params.set('case_id', currentCaseId);
+        if (!IMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
+        const params = new URLSearchParams({ page: currentPage, size: pageSize, case_id: IMS.currentCaseId });
         if (currentFolderId) params.set('folder_id', currentFolderId);
         if (currentSortBy) params.set('sort_by', currentSortBy);
         if (currentSortDir) params.set('sort_dir', currentSortDir);
@@ -452,7 +440,7 @@
 
         try {
             const params = new URLSearchParams({ q, size: 20 });
-            if (currentCaseId) params.set('case_id', currentCaseId);
+            if (IMS.currentCaseId) params.set('case_id', IMS.currentCaseId);
             const data = await IMS.api('/entities/?' + params.toString());
             container.innerHTML = '';
             if (!data.entities.length) { container.innerHTML = '<small class="text-muted">לא נמצאו ישויות</small>'; return; }
@@ -478,7 +466,7 @@
         const name = document.getElementById('new-entity-name').value.trim();
         const type = document.getElementById('new-entity-type').value;
         if (!name) { IMS.toast('הכנס שם ישות', 'error'); return; }
-        const caseId = currentCaseId || (currentMaterialsList[0]?.case_id);
+        const caseId = IMS.currentCaseId || (currentMaterialsList[0]?.case_id);
         if (!caseId) { IMS.toast('בחר תיק', 'error'); return; }
 
         try {
@@ -498,7 +486,7 @@
 
         try {
             const params = new URLSearchParams({ size: 50 });
-            if (currentCaseId) params.set('case_id', currentCaseId);
+            if (IMS.currentCaseId) params.set('case_id', IMS.currentCaseId);
             const data = await IMS.api('/timeline/?' + params.toString());
             const filtered = data.events.filter(ev => ev.title.includes(q));
             container.innerHTML = '';
@@ -525,7 +513,7 @@
         const title = document.getElementById('new-event-title').value.trim();
         const eventDate = document.getElementById('new-event-date').value;
         if (!title || !eventDate) { IMS.toast('כותרת ותאריך חובה', 'error'); return; }
-        const caseId = currentCaseId || (currentMaterialsList[0]?.case_id);
+        const caseId = IMS.currentCaseId || (currentMaterialsList[0]?.case_id);
         if (!caseId) { IMS.toast('בחר תיק', 'error'); return; }
 
         try {
@@ -574,14 +562,6 @@
 
     // ---- Filters ----
     function setupFilters() {
-        document.getElementById('case-select')?.addEventListener('change', (e) => {
-            currentCaseId = e.target.value ? parseInt(e.target.value) : null;
-            currentFolderId = null;
-            currentPage = 1;
-            loadMaterials();
-            loadFolderTree();
-        });
-
         document.getElementById('type-filter')?.addEventListener('change', () => { currentPage = 1; loadMaterials(); });
         document.getElementById('status-filter')?.addEventListener('change', () => { currentPage = 1; loadMaterials(); });
 
@@ -740,7 +720,7 @@
     async function uploadFiles(fileEntries) {
         const progress = document.getElementById('upload-progress');
         const summary = document.getElementById('upload-summary');
-        const caseId = currentCaseId;
+        const caseId = IMS.currentCaseId;
         const total = fileEntries.length;
         let succeeded = 0, failed = 0;
 

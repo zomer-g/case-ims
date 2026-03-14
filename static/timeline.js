@@ -4,28 +4,15 @@
 (function () {
     document.addEventListener('DOMContentLoaded', () => {
         if (!IMS.token) { window.location.href = '/static/login.html'; return; }
-        loadCases();
-        loadTimeline();
         setupFilters();
         setupEventModal();
         setupGenerateModal();
+        // Listen for global case changes
+        document.addEventListener('case-changed', () => loadTimeline());
     });
 
-    async function loadCases() {
-        try {
-            const cases = await IMS.api('/cases/');
-            ['case-filter', 'event-case', 'gen-case'].forEach(id => {
-                const sel = document.getElementById(id);
-                if (!sel) return;
-                const d = id === 'case-filter' ? '<option value="">כל התיקים</option>' : '';
-                sel.innerHTML = d;
-                cases.forEach(c => { sel.innerHTML += `<option value="${c.id}">${IMS.esc(c.name)}</option>`; });
-            });
-        } catch (err) { console.warn(err); }
-    }
-
     function setupFilters() {
-        ['case-filter', 'source-filter', 'date-from', 'date-to'].forEach(id => {
+        ['source-filter', 'date-from', 'date-to'].forEach(id => {
             document.getElementById(id)?.addEventListener('change', loadTimeline);
         });
     }
@@ -36,12 +23,11 @@
         const empty = document.getElementById('empty-state');
         spinner.classList.remove('d-none'); empty.classList.add('d-none'); container.innerHTML = '';
 
-        const params = new URLSearchParams({ size: 500 });
-        const caseId = document.getElementById('case-filter')?.value;
+        if (!IMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
+        const params = new URLSearchParams({ size: 500, case_id: IMS.currentCaseId });
         const dateFrom = document.getElementById('date-from')?.value;
         const dateTo = document.getElementById('date-to')?.value;
         const source = document.getElementById('source-filter')?.value;
-        if (caseId) params.set('case_id', caseId);
         if (dateFrom) params.set('date_from', dateFrom);
         if (dateTo) params.set('date_to', dateTo);
         if (source) params.set('source', source);
@@ -141,7 +127,7 @@
     function editEvent(ev) {
         document.getElementById('event-id').value = ev.id;
         document.getElementById('eventModalLabel').textContent = 'עריכת אירוע';
-        document.getElementById('event-case').value = ev.case_id;
+        // case_id from global selector
         document.getElementById('event-title').value = ev.title;
         document.getElementById('event-desc').value = ev.description || '';
         document.getElementById('event-date').value = ev.event_date ? ev.event_date.substring(0, 16) : '';
@@ -154,7 +140,6 @@
     async function saveEvent() {
         const id = document.getElementById('event-id').value;
         const title = document.getElementById('event-title').value.trim();
-        const caseId = document.getElementById('event-case').value;
         const eventDate = document.getElementById('event-date').value;
 
         if (!title || !eventDate) { IMS.toast('כותרת ותאריך חובה', 'error'); return; }
@@ -174,7 +159,7 @@
                 await IMS.api(`/timeline/${id}`, { method: 'PUT', json: body });
                 IMS.toast('אירוע עודכן', 'success');
             } else {
-                body.case_id = parseInt(caseId);
+                body.case_id = IMS.currentCaseId;
                 if (!body.case_id) { IMS.toast('יש לבחור תיק', 'error'); return; }
                 await IMS.api('/timeline/', { method: 'POST', json: body });
                 IMS.toast('אירוע נוצר', 'success');
@@ -191,7 +176,7 @@
         });
 
         document.getElementById('run-generate-btn')?.addEventListener('click', async () => {
-            const caseId = document.getElementById('gen-case').value;
+            const caseId = IMS.currentCaseId;
             const provider = document.getElementById('gen-provider').value;
             if (!caseId) { IMS.toast('יש לבחור תיק', 'error'); return; }
 
@@ -202,7 +187,7 @@
             try {
                 const result = await IMS.api('/timeline/generate', {
                     method: 'POST',
-                    json: { case_id: parseInt(caseId), provider },
+                    json: { case_id: caseId, provider },
                 });
                 bootstrap.Modal.getInstance(document.getElementById('generateModal'))?.hide();
                 IMS.toast(`${result.created} אירועים נוצרו מ-${result.source_materials} חומרים`, 'success');

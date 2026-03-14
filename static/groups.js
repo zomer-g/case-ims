@@ -6,26 +6,11 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         if (!IMS.token) { window.location.href = '/static/login.html'; return; }
-        loadCases();
-        loadGroups();
         setupCreateModal();
         setupDetailModal();
         setupAddMembersModal();
-        document.getElementById('case-filter')?.addEventListener('change', loadGroups);
+        document.addEventListener('case-changed', () => loadGroups());
     });
-
-    async function loadCases() {
-        try {
-            const cases = await IMS.api('/cases/');
-            ['case-filter', 'group-case'].forEach(id => {
-                const sel = document.getElementById(id);
-                if (!sel) return;
-                const d = id === 'case-filter' ? '<option value="">כל התיקים</option>' : '';
-                sel.innerHTML = d;
-                cases.forEach(c => { sel.innerHTML += `<option value="${c.id}">${IMS.esc(c.name)}</option>`; });
-            });
-        } catch (err) { console.warn(err); }
-    }
 
     async function loadGroups() {
         const list = document.getElementById('groups-list');
@@ -33,8 +18,8 @@
         const empty = document.getElementById('empty-state');
         spinner.classList.remove('d-none'); empty.classList.add('d-none'); list.innerHTML = '';
 
-        const caseId = document.getElementById('case-filter')?.value;
-        const params = caseId ? `?case_id=${caseId}` : '';
+        if (!IMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
+        const params = `?case_id=${IMS.currentCaseId}`;
 
         try {
             const data = await IMS.api('/groups/' + params);
@@ -77,10 +62,9 @@
 
         document.getElementById('create-group-btn')?.addEventListener('click', async () => {
             const name = document.getElementById('group-name').value.trim();
-            const caseId = document.getElementById('group-case').value;
-            if (!name || !caseId) { IMS.toast('שם ותיק חובה', 'error'); return; }
+            if (!name || !IMS.currentCaseId) { IMS.toast('שם ותיק חובה', 'error'); return; }
             try {
-                await IMS.api('/groups/', { method: 'POST', json: { case_id: parseInt(caseId), name, description: document.getElementById('group-desc').value } });
+                await IMS.api('/groups/', { method: 'POST', json: { case_id: IMS.currentCaseId, name, description: document.getElementById('group-desc').value } });
                 bootstrap.Modal.getInstance(document.getElementById('createGroupModal'))?.hide();
                 IMS.toast('קבוצה נוצרה', 'success');
                 loadGroups();
@@ -192,6 +176,7 @@
         const container = document.getElementById('available-materials');
         const q = document.getElementById('member-search').value.trim();
         const params = new URLSearchParams({ size: 100 });
+        if (IMS.currentCaseId) params.set('case_id', IMS.currentCaseId);
         if (q) params.set('q', q);
 
         try {

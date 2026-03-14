@@ -9,36 +9,16 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         if (!IMS.token) { window.location.href = '/static/login.html'; return; }
-        loadCases();
-        loadEntities();
         setupFilters();
         setupEntityModal();
         setupDetailModal();
         setupLinkModal();
+        // Listen for global case changes
+        document.addEventListener('case-changed', () => { currentPage = 1; loadEntities(); });
     });
-
-    // ---- Load Cases for filters ----
-    async function loadCases() {
-        try {
-            const cases = await IMS.api('/cases/');
-            ['case-filter', 'entity-case'].forEach(id => {
-                const sel = document.getElementById(id);
-                if (!sel) return;
-                const defaultOpt = id === 'case-filter' ? '<option value="">כל התיקים</option>' : '';
-                sel.innerHTML = defaultOpt;
-                cases.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = c.name;
-                    sel.appendChild(opt);
-                });
-            });
-        } catch (err) { console.warn('Failed to load cases:', err); }
-    }
 
     // ---- Filters ----
     function setupFilters() {
-        document.getElementById('case-filter')?.addEventListener('change', () => { currentPage = 1; loadEntities(); });
         document.getElementById('type-filter')?.addEventListener('change', () => { currentPage = 1; loadEntities(); });
         document.getElementById('search-input')?.addEventListener('input', () => {
             clearTimeout(searchTimeout);
@@ -53,11 +33,10 @@
         const empty = document.getElementById('empty-state');
         spinner.classList.remove('d-none'); empty.classList.add('d-none'); list.innerHTML = '';
 
-        const params = new URLSearchParams({ page: currentPage, size: pageSize });
-        const caseId = document.getElementById('case-filter')?.value;
+        if (!IMS.currentCaseId) { spinner.classList.add('d-none'); empty.classList.remove('d-none'); return; }
+        const params = new URLSearchParams({ page: currentPage, size: pageSize, case_id: IMS.currentCaseId });
         const type = document.getElementById('type-filter')?.value;
         const q = document.getElementById('search-input')?.value?.trim();
-        if (caseId) params.set('case_id', caseId);
         if (type) params.set('entity_type', type);
         if (q) params.set('q', q);
 
@@ -145,7 +124,7 @@
         const id = document.getElementById('entity-id').value;
         const body = {
             entity_type: document.getElementById('entity-type').value,
-            case_id: parseInt(document.getElementById('entity-case').value),
+            case_id: IMS.currentCaseId,
             name: document.getElementById('entity-name').value.trim(),
             description: document.getElementById('entity-desc').value.trim() || null,
         };
@@ -377,15 +356,14 @@
 
         // Load options based on type
         if (type === 'entity') {
-            const caseId = document.getElementById('case-filter')?.value;
-            const params = caseId ? `?case_id=${caseId}&size=200` : '?size=200';
+            const params = IMS.currentCaseId ? `?case_id=${IMS.currentCaseId}&size=200` : '?size=200';
             const data = await IMS.api('/entities/' + params);
             const sel = document.getElementById('link-target-entity');
             sel.innerHTML = data.entities.filter(e => e.id !== currentEntityId).map(e =>
                 `<option value="${e.id}">${IMS.esc(e.name)} (${IMS.entityTypeLabel(e.entity_type)})</option>`
             ).join('');
         } else if (type === 'material') {
-            const data = await IMS.api('/materials/?size=200');
+            const data = await IMS.api(`/materials/?size=200${IMS.currentCaseId ? '&case_id=' + IMS.currentCaseId : ''}`);
             const sel = document.getElementById('link-target-material');
             sel.innerHTML = data.materials.map(m =>
                 `<option value="${m.id}">${IMS.esc(m.filename)}</option>`
