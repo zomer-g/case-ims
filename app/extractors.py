@@ -173,6 +173,20 @@ def _extract_pdf_via_ocr(file_path: str) -> str:
         return ""
 
 
+def _extract_image_via_vision(file_path: str) -> str:
+    """Extract description and text from image via LLM vision API (Gemini)."""
+    try:
+        from app.config import settings
+        if not settings.GOOGLE_API_KEY:
+            return ""
+        from app.llm_service import describe_image
+        logger.info("Vision API: describing image %s", os.path.basename(file_path))
+        return describe_image(file_path, provider="gemini")
+    except Exception as e:
+        logger.warning("Vision API failed for %s: %s", os.path.basename(file_path), e)
+        return ""
+
+
 def _extract_image_text(file_path: str) -> str:
     """Extract text from image via OCR."""
     try:
@@ -250,7 +264,17 @@ def convert_to_markdown(file_path: str) -> str:
 
     # Handle by file type
     if file_type == 'image':
-        text = _extract_image_text(file_path)
+        # Try LLM vision first (Gemini), fallback to OCR
+        vision_text = _extract_image_via_vision(file_path)
+        if vision_text and vision_text.strip():
+            # Also try OCR and merge if available
+            ocr_text = _extract_image_text(file_path)
+            if ocr_text and ocr_text.strip() and ocr_text.strip() not in vision_text:
+                text = f"{vision_text}\n\n**OCR טקסט נוסף:**\n{ocr_text}"
+            else:
+                text = vision_text
+        else:
+            text = _extract_image_text(file_path)
         if not text.strip():
             text = f"[Image file: {os.path.basename(file_path)}]"
         return text
