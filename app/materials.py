@@ -226,18 +226,22 @@ def list_materials(
     folder_id: Optional[int] = None,
     file_type: Optional[str] = None,
     q: Optional[str] = None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_dir: Optional[str] = None,
     page: int = 1,
     size: int = 50,
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_optional_user),
 ):
+    from sqlalchemy import or_
     query = db.query(models.Material)
 
     # Visibility filter
     if current_user and current_user.is_admin:
         pass  # Admin sees all
     elif current_user:
-        from sqlalchemy import or_
         query = query.filter(or_(
             models.Material.is_public.is_(True),
             models.Material.owner_id == current_user.id,
@@ -251,11 +255,33 @@ def list_materials(
         query = query.filter(models.Material.folder_id == folder_id)
     if file_type:
         query = query.filter(models.Material.file_type == file_type)
+    if status:
+        query = query.filter(models.Material.extraction_status == status)
     if q:
         query = query.filter(models.Material.filename.ilike(f"%{q}%"))
+    if search:
+        query = query.filter(or_(
+            models.Material.filename.ilike(f"%{search}%"),
+            models.Material.content_text.ilike(f"%{search}%"),
+            models.Material.content_summary.ilike(f"%{search}%"),
+        ))
 
     total = query.count()
-    materials = query.order_by(models.Material.upload_date.desc()).offset((page - 1) * size).limit(size).all()
+
+    # Sorting
+    _sort_columns = {
+        "filename": models.Material.filename,
+        "upload_date": models.Material.upload_date,
+        "file_size": models.Material.file_size,
+        "file_type": models.Material.file_type,
+    }
+    sort_col = _sort_columns.get(sort_by, models.Material.upload_date)
+    if sort_dir == "asc":
+        query = query.order_by(sort_col.asc())
+    else:
+        query = query.order_by(sort_col.desc())
+
+    materials = query.offset((page - 1) * size).limit(size).all()
 
     return {
         "total": total, "page": page, "size": size,
@@ -264,11 +290,13 @@ def list_materials(
                 "id": m.id, "filename": m.filename, "file_type": m.file_type,
                 "file_size": m.file_size, "case_id": m.case_id,
                 "case_name": m.case_name, "folder_id": m.folder_id,
+                "folder_name": m.folder.name if m.folder else None,
                 "upload_date": m.upload_date, "is_public": m.is_public,
                 "content_summary": m.content_summary,
                 "metadata_json": m.metadata_json or {},
                 "extraction_status": m.extraction_status,
                 "page_count": m.page_count, "duration_seconds": m.duration_seconds,
+                "original_path": m.original_path,
             }
             for m in materials
         ],
@@ -384,6 +412,57 @@ def delete_material(material_id: int, db: Session = Depends(get_db), current_use
     db.delete(mat)
     db.commit()
     return {"detail": "Material deleted"}
+
+
+@router.get("/{material_id}/entities")
+def get_material_entities(material_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Get all entities linked to a material."""
+    mat = db.query(models.Material).filter(models.Material.id == material_id).first()
+    if not mat:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    links = db.query(models.EntityMaterialLink).filter(
+        models.EntityMaterialLink.material_id == material_id
+    ).all()
+
+    results = []
+    for link in links:
+        entity = link.entity
+        results.append({
+            "link_id": link.id,
+            "entity_id": entity.id,
+            "entity_type": entity.entity_type,
+            "name": entity.name,
+            "description": entity.description,
+            "relevance": link.relevance,
+            "detail": link.detail,
+            "page_ref": link.page_ref,
+        })
+    return {"entities": results}
+
+
+@router.get("/{material_id}/timeline-events")
+def get_material_timeline_events(material_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Get all timeline events linked to a material."""
+    mat = db.query(models.Material).filter(models.Material.id == material_id).first()
+    if not mat:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    events = db.query(models.TimelineEvent).filter(
+        models.TimelineEvent.material_id == material_id
+    ).order_by(models.TimelineEvent.event_date).all()
+
+    return {
+        "events": [
+            {
+                "id": ev.id, "title": ev.title, "description": ev.description,
+                "event_date": ev.event_date, "event_end_date": ev.event_end_date,
+                "location": ev.location, "source": ev.source,
+                "confidence": ev.confidence, "tags": ev.tags or [],
+            }
+            for ev in events
+        ]
+    }
 
 
 def background_ai_task(material_id: int, text: str, file_path: str, provider: str):
