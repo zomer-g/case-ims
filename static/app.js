@@ -6,13 +6,70 @@
 const IMS = {
     token: localStorage.getItem('token'),
     user: null,
+    currentCaseId: null,
+    _cases: [],
 
     init() {
         const stored = localStorage.getItem('user');
         if (stored) {
             try { this.user = JSON.parse(stored); } catch { this.user = null; }
         }
+        // Restore case selection
+        const savedCase = localStorage.getItem('currentCaseId');
+        if (savedCase) this.currentCaseId = parseInt(savedCase);
         this._updateNav();
+        if (this.token) this.loadCases();
+    },
+
+    async loadCases() {
+        try {
+            this._cases = await this.api('/cases/');
+            this._renderCaseSelector();
+        } catch (err) { console.warn('Failed to load cases:', err); }
+    },
+
+    _renderCaseSelector() {
+        const sel = document.getElementById('global-case-select');
+        if (!sel) return;
+        sel.innerHTML = '';
+        if (!this._cases.length) {
+            sel.innerHTML = '<option value="">אין תיקים</option>';
+            this.currentCaseId = null;
+            localStorage.removeItem('currentCaseId');
+            return;
+        }
+        this._cases.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            sel.appendChild(opt);
+        });
+        // Restore selection or default to first
+        if (this.currentCaseId && this._cases.some(c => c.id === this.currentCaseId)) {
+            sel.value = this.currentCaseId;
+        } else {
+            this.currentCaseId = this._cases[0].id;
+            sel.value = this.currentCaseId;
+            localStorage.setItem('currentCaseId', this.currentCaseId);
+        }
+        // Fire initial case-changed so pages load data
+        document.dispatchEvent(new CustomEvent('case-changed', { detail: { caseId: this.currentCaseId } }));
+        sel.addEventListener('change', () => {
+            const newId = parseInt(sel.value);
+            if (newId !== this.currentCaseId) {
+                this.currentCaseId = newId;
+                localStorage.setItem('currentCaseId', newId);
+                document.dispatchEvent(new CustomEvent('case-changed', { detail: { caseId: newId } }));
+            }
+        });
+    },
+
+    requireCase() {
+        if (!this.currentCaseId) {
+            this.toast('יש לבחור תיק לפני ביצוע פעולה', 'error');
+            return null;
+        }
+        return this.currentCaseId;
     },
 
     _updateNav() {
