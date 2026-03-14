@@ -105,6 +105,46 @@ const IMS = {
         return map[fileType] || map.other;
     },
 
+    // Detailed file type icon based on extension
+    typeIconDetailed(fileType, filename) {
+        if (!filename) return this.typeIcon(fileType);
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        const extMap = {
+            pdf: 'fas fa-file-pdf text-danger',
+            doc: 'fas fa-file-word text-primary',
+            docx: 'fas fa-file-word text-primary',
+            xls: 'fas fa-file-excel text-success',
+            xlsx: 'fas fa-file-excel text-success',
+            csv: 'fas fa-file-csv text-success',
+            tsv: 'fas fa-file-csv text-success',
+            pptx: 'fas fa-file-powerpoint text-warning',
+            ppt: 'fas fa-file-powerpoint text-warning',
+            txt: 'fas fa-file-lines text-secondary',
+            html: 'fas fa-file-code text-info',
+            htm: 'fas fa-file-code text-info',
+            png: 'fas fa-file-image text-success',
+            jpg: 'fas fa-file-image text-success',
+            jpeg: 'fas fa-file-image text-success',
+            gif: 'fas fa-file-image text-success',
+            webp: 'fas fa-file-image text-success',
+            tiff: 'fas fa-file-image text-success',
+            tif: 'fas fa-file-image text-success',
+            bmp: 'fas fa-file-image text-success',
+            mp3: 'fas fa-file-audio text-info',
+            wav: 'fas fa-file-audio text-info',
+            m4a: 'fas fa-file-audio text-info',
+            ogg: 'fas fa-file-audio text-info',
+            flac: 'fas fa-file-audio text-info',
+            aac: 'fas fa-file-audio text-info',
+            mp4: 'fas fa-file-video text-warning',
+            avi: 'fas fa-file-video text-warning',
+            mov: 'fas fa-file-video text-warning',
+            mkv: 'fas fa-file-video text-warning',
+            webm: 'fas fa-file-video text-warning',
+        };
+        return extMap[ext] || this.typeIcon(fileType);
+    },
+
     // Status badge
     statusBadge(status) {
         const map = {
