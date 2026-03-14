@@ -414,6 +414,146 @@ def delete_material(material_id: int, db: Session = Depends(get_db), current_use
     return {"detail": "Material deleted"}
 
 
+@router.post("/bulk/tag")
+def bulk_tag_materials(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Add a tag to multiple materials' metadata_json."""
+    material_ids = data.get("material_ids", [])
+    tag = data.get("tag", "").strip()
+    if not material_ids or not tag:
+        raise HTTPException(status_code=400, detail="material_ids and tag required")
+
+    updated = 0
+    for mid in material_ids:
+        mat = db.query(models.Material).filter(models.Material.id == mid).first()
+        if not mat:
+            continue
+        meta = mat.metadata_json or {}
+        tags = meta.get("tags", [])
+        if not isinstance(tags, list):
+            tags = []
+        if tag not in tags:
+            tags.append(tag)
+        meta["tags"] = tags
+        mat.metadata_json = meta
+        flag_modified(mat, "metadata_json")
+        updated += 1
+
+    db.commit()
+    return {"updated": updated, "tag": tag}
+
+
+@router.post("/bulk/link-entities")
+def bulk_link_entities(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Link multiple materials to entities, optionally creating new entities."""
+    material_ids = data.get("material_ids", [])
+    entity_ids = data.get("entity_ids", [])
+    create_entities = data.get("create_entities", [])
+    if not material_ids:
+        raise HTTPException(status_code=400, detail="material_ids required")
+
+    # Create new entities if requested
+    for ent_data in create_entities:
+        name = ent_data.get("name", "").strip()
+        etype = ent_data.get("entity_type", "topic")
+        case_id = ent_data.get("case_id")
+        if not name or not case_id:
+            continue
+        entity = models.Entity(
+            entity_type=etype, case_id=case_id, name=name,
+            created_by_id=current_user.id,
+        )
+        db.add(entity)
+        db.flush()
+        entity_ids.append(entity.id)
+
+    linked = 0
+    for mid in material_ids:
+        mat = db.query(models.Material).filter(models.Material.id == mid).first()
+        if not mat:
+            continue
+        for eid in entity_ids:
+            existing = db.query(models.EntityMaterialLink).filter(
+                models.EntityMaterialLink.entity_id == eid,
+                models.EntityMaterialLink.material_id == mid,
+            ).first()
+            if not existing:
+                link = models.EntityMaterialLink(entity_id=eid, material_id=mid)
+                db.add(link)
+                linked += 1
+
+    db.commit()
+    return {"linked": linked}
+
+
+@router.post("/bulk/link-timeline")
+def bulk_link_timeline(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Link multiple materials to timeline events, optionally creating new events."""
+    material_ids = data.get("material_ids", [])
+    event_ids = data.get("event_ids", [])
+    create_events = data.get("create_events", [])
+    if not material_ids:
+        raise HTTPException(status_code=400, detail="material_ids required")
+
+    # Create new events if requested
+    for ev_data in create_events:
+        title = ev_data.get("title", "").strip()
+        event_date = ev_data.get("event_date")
+        case_id = ev_data.get("case_id")
+        if not title or not event_date or not case_id:
+            continue
+        ev = models.TimelineEvent(
+            case_id=case_id, title=title, event_date=event_date,
+            description=ev_data.get("description"),
+            location=ev_data.get("location"),
+            source="manual",
+        )
+        db.add(ev)
+        db.flush()
+        event_ids.append(ev.id)
+
+    # For timeline events, we set material_id on the event itself
+    # Since TimelineEvent has a single material_id, we create copies for each material
+    linked = 0
+    for mid in material_ids:
+        mat = db.query(models.Material).filter(models.Material.id == mid).first()
+        if not mat:
+            continue
+        for eid in event_ids:
+            ev = db.query(models.TimelineEvent).filter(models.TimelineEvent.id == eid).first()
+            if not ev:
+                continue
+            # If event has no material_id, set it
+            if ev.material_id is None:
+                ev.material_id = mid
+                linked += 1
+            elif ev.material_id != mid:
+                # Create a clone of this event linked to this material
+                new_ev = models.TimelineEvent(
+                    case_id=ev.case_id, material_id=mid,
+                    title=ev.title, description=ev.description,
+                    event_date=ev.event_date, event_end_date=ev.event_end_date,
+                    location=ev.location, source=ev.source,
+                    confidence=ev.confidence, tags=ev.tags,
+                )
+                db.add(new_ev)
+                linked += 1
+
+    db.commit()
+    return {"linked": linked}
+
+
 @router.get("/{material_id}/entities")
 def get_material_entities(material_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """Get all entities linked to a material."""

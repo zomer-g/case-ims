@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from app.database import engine, Base, SessionLocal
 from app import auth, users, materials, cases, queue as queue_module
 from app import admin, admin_prompts, admin_fields, admin_system
-from app import entities, folders, groups, timeline
+from app import entities, folders, groups, timeline, prompt_runner
 from app.config import settings
 from app.models import User, SiteSetting
 
@@ -118,6 +118,7 @@ app.include_router(entities.router)
 app.include_router(folders.router)
 app.include_router(groups.router)
 app.include_router(timeline.router)
+app.include_router(prompt_runner.router)
 
 
 # ---- Queue Worker Startup ----
